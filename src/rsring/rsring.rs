@@ -1,8 +1,9 @@
 use std::io::Error;
-use crate::io::{squeue::SQueue, cqueue::CQueue, io_uring};
+use std::ptr;
+use crate::rsring::{squeue::SQueue, cqueue::CQueue};
+use crate::rsring::io_uring::io_uring;
 
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RSRing {
   pub params: io_uring::params,
   pub fd: i32,
@@ -13,7 +14,7 @@ pub struct RSRing {
 impl RSRing {
   pub fn new(depth: u32) -> Result<RSRing, Error> {
     let mut params = Default::default();
-    let fd = match io_uring::setup(depth, &mut params as *mut io_uring::params) {
+    let fd = match io_uring::setup(depth, ptr::addr_of_mut!(params)) {
       Ok(fd) => fd,
       Err(e) => return Err(e)
     };

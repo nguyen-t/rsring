@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-pub mod ioring;
-pub mod io_uring;
+mod io_uring;
 pub mod squeue;
 pub mod cqueue;
 pub mod rsring;

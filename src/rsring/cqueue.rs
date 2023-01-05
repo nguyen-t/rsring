@@ -2,9 +2,10 @@ use core::ffi::c_void;
 use std::mem::size_of;
 use std::sync::atomic::AtomicU32;
 use libc::munmap;
-use crate::io::{ring_map, ioring, io_uring};
+use crate::rsring::{ring_map};
+use crate::rsring::io_uring::{io_uring, constants::IORING_OFF_CQ_RING};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CQueue {
   pub ring: *mut c_void,
   pub size: usize,
@@ -12,6 +13,8 @@ pub struct CQueue {
   pub tail: *mut AtomicU32,
   pub mask: *mut AtomicU32,
   pub entries: *mut AtomicU32,
+  pub overflow: *mut AtomicU32,
+  pub cqes: *mut AtomicU32,
 }
 
 impl CQueue {
@@ -19,7 +22,7 @@ impl CQueue {
     let size = params.cq_off.cqes as usize
       + params.cq_entries as usize
       * size_of::<io_uring::cqe>() as usize;
-    let ring = ring_map(fd, size, ioring::OFF::CQ_RING as i64);
+    let ring = ring_map(fd, size, IORING_OFF_CQ_RING);
 
     return CQueue {
       ring: ring,
@@ -28,6 +31,8 @@ impl CQueue {
       tail: unsafe { ring.add(params.cq_off.tail as usize) } as *mut AtomicU32,
       mask: unsafe { ring.add(params.cq_off.ring_mask as usize) } as *mut AtomicU32,
       entries: unsafe { ring.add(params.cq_off.ring_entires as usize) } as *mut AtomicU32,
+      overflow: unsafe { ring.add(params.cq_off.overflow as usize) } as *mut AtomicU32,
+      cqes: unsafe { ring.add(params.cq_off.cqes as usize) } as * mut AtomicU32,
     };
   }
 }

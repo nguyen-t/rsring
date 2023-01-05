@@ -1,10 +1,9 @@
-use core::ffi::{c_void, c_int, c_uint, c_long};
-use std::mem::size_of;
-use std::io::Error;
-use libc::{syscall, sigset_t, SYS_io_uring_setup, SYS_io_uring_enter, SYS_io_uring_register};
+use core::ffi::{c_void, c_size_t, c_int, c_uint};
+use std::{io::Error};
+use libc::{syscall, SYS_io_uring_setup, SYS_io_uring_enter, SYS_io_uring_register};
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct cqe {
   pub user_data: u64,
   pub res: i64,
@@ -12,14 +11,8 @@ pub struct cqe {
   pub big_cqe: [u64; 4],
 }
 
-impl Default for cqe {
-  fn default() -> cqe {
-    return unsafe { std::mem::zeroed() };
-  }
-}
-
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct sqe {
   pub opcode: u8,
   pub flags: u8,
@@ -36,14 +29,8 @@ pub struct sqe {
   pub addr3: u64,
 }
 
-impl Default for sqe {
-  fn default() -> sqe {
-    return unsafe { std::mem::zeroed() };
-  }
-}
-
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct sqring_offsets {
   pub head: u32,
   pub tail: u32,
@@ -55,14 +42,8 @@ pub struct sqring_offsets {
   pub resv: [u32; 3],
 }
 
-impl Default for sqring_offsets {
-  fn default() -> sqring_offsets {
-    return unsafe { std::mem::zeroed() };
-  }
-}
-
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct cqring_offsets {
   pub head: u32,
   pub tail: u32,
@@ -74,14 +55,8 @@ pub struct cqring_offsets {
   pub resv: [u32; 3],
 }
 
-impl Default for cqring_offsets {
-  fn default() -> cqring_offsets {
-    return unsafe { std::mem::zeroed() };
-  }
-}
-
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct params {
   pub sq_entries: u32,
   pub cq_entries: u32,
@@ -93,23 +68,26 @@ pub struct params {
   pub cq_off: cqring_offsets,
 }
 
-impl Default for params {
-  fn default() -> params {
-    return unsafe { std::mem::zeroed() };
-  }
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub struct getevents_args {
+  pub sigmask: u64,
+  pub sigmask_sz: u32,
+  pub pad: u32,
+  pub ts: u64,
 }
 
 pub fn setup(entries: c_uint, p: *mut params) -> Result<c_int, Error> {
   let r = unsafe {
-    syscall(SYS_io_uring_setup, entries, p as c_long)
+    syscall(SYS_io_uring_setup, entries, p)
   };
 
   return if r < 0 { Err(Error::last_os_error()) } else { Ok(r as c_int) };
 }
 
-pub fn enter(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, sig: *mut sigset_t) -> Result<c_int, Error> {
+pub fn enter(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, arg: *mut c_void, argsz: c_size_t) -> Result<c_int, Error> {
   let r = unsafe {
-    syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, sig, size_of::<sigset_t>())
+    syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, arg, argsz)
   };
 
   return if r < 0 { Err(Error::last_os_error()) } else { Ok(r as c_int) };
