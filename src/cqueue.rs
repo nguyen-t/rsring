@@ -2,27 +2,33 @@ use core::ffi::c_void;
 use std::mem::size_of;
 use std::sync::atomic::AtomicU32;
 use libc::munmap;
-use crate::rsring::{ring_map};
-use crate::rsring::io_uring::{io_uring, constants::IORING_OFF_CQ_RING};
+use crate::util::ring_map;
+use crate::io_uring;
 
 #[derive(Debug, Clone)]
 pub struct CQueue {
-  pub ring: *mut c_void,
-  pub size: usize,
-  pub head: *mut AtomicU32,
-  pub tail: *mut AtomicU32,
-  pub mask: *mut AtomicU32,
-  pub entries: *mut AtomicU32,
+  pub ring:     *mut c_void,
+  pub size:     usize,
+  pub head:     *mut AtomicU32,
+  pub tail:     *mut AtomicU32,
+  pub mask:     *mut AtomicU32,
+  pub entries:  *mut AtomicU32,
   pub overflow: *mut AtomicU32,
-  pub cqes: *mut AtomicU32,
+  pub cqes:     *mut AtomicU32,
 }
 
 impl CQueue {
   pub fn new(fd: i32, params: &io_uring::params) -> CQueue {
+    let cqe_size = if (params.flags & io_uring::IORING_SETUP_CQE32) > 0 { 
+      size_of::<io_uring::cqe<[u64; 2]>>() 
+    }
+    else {
+      size_of::<io_uring::cqe<[u64; 0]>>() 
+    };
     let size = params.cq_off.cqes as usize
       + params.cq_entries as usize
-      * size_of::<io_uring::cqe>() as usize;
-    let ring = ring_map(fd, size, IORING_OFF_CQ_RING);
+      * cqe_size as usize;
+    let ring = ring_map(fd, size, io_uring::IORING_OFF_CQ_RING);
 
     return CQueue {
       ring: ring,
