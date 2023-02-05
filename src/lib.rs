@@ -3,10 +3,10 @@ mod io_uring;
 mod util;
 mod squeue;
 mod cqueue;
-mod rsring;
+mod ring;
 
 pub use {
   squeue::SQueue,
   cqueue::CQueue,
-  rsring::RSRing,
+  ring::RSRing,
 };
