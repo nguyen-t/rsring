@@ -19,19 +19,19 @@ pub struct sqe<T: ?Sized> {
   pub addr2:       u64,
   pub addr1:       u64,
   pub len:         u32,
-  pub op_flags:    u64,
+  pub op_flags:    u32,
   pub user_data:   u64,
   pub buf_select:  u16,
   pub personality: u16,
   pub file_select: u32,
-  pub cmd:         T,
+  pub add3:        T,
 }
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct cqe<T: ?Sized> {
   pub user_data: u64,
-  pub res:       i64,
+  pub res:       i32,
   pub flags:     u32,
   pub big_cqe:   T,
 }
@@ -60,7 +60,8 @@ pub struct cqring_offsets {
   pub overflow:     u32,
   pub cqes:         u32,
   pub flags:        u32,
-  pub resv:         u32,
+  pub resv1:        u32,
+  pub resv2:        u64,
 }
 
 #[repr(C)]
@@ -163,18 +164,18 @@ pub struct buf {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
+pub struct buf_ring<T: ?Sized> {
+  pub bufs: T,
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct buf_reg {
   pub ring_addr:    u64,
   pub ring_entires: u32,
   pub bgid:         u16,
   pub pad:          u16,
-  pub resv:        [u64; 3],
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
-pub struct buf_ring<T: ?Sized> {
-  pub bufs: T,
+  pub resv:         [u64; 3],
 }
 
 #[repr(C)]
