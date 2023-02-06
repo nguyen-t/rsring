@@ -8,7 +8,7 @@ pub use {
 };
 
 #[cfg(test)]
-mod tests {
+mod size_tests {
   use std::mem::size_of;
   use crate::io_uring::*;
 
