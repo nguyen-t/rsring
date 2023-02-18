@@ -15,7 +15,7 @@ pub struct SQueue<T: Sized> {
   pub sqes:         *mut io_uring::sqe<T>,
   pub sqe_head:     u32,
   pub sqe_tail:     u32,
-  pub ring_masks:   u32,
+  pub ring_mask:    u32,
   pub ring_entries: u32,
   pub size:         usize,
 }
@@ -33,7 +33,7 @@ impl<T: Sized> SQueue<T> {
       sqes: memmap(fd, size, io_uring::IORING_OFF_SQES) as *mut io_uring::sqe<T>,
       sqe_head: 0,
       sqe_tail : 0,
-      ring_masks: ring.add(p.sq_off.ring_mask as usize).cast::<u32>().read(),
+      ring_mask: ring.add(p.sq_off.ring_mask as usize).cast::<u32>().read(),
       ring_entries: ring.add(p.sq_off.ring_entries as usize).cast::<u32>().read(),
       size: size,
     };
