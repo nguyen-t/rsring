@@ -9,7 +9,7 @@ struct __kernel_timespec {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-pub struct sqe<T: ?Sized> {
+pub struct sqe<T: Sized> {
   pub opcode:      u8,
   pub flags:       u8,
   pub ioprio:      u16,
@@ -27,7 +27,7 @@ pub struct sqe<T: ?Sized> {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-pub struct cqe<T: ?Sized> {
+pub struct cqe<T: Sized> {
   pub user_data: u64,
   pub res:       i32,
   pub flags:     u32,
@@ -54,7 +54,7 @@ pub struct cqring_offsets {
   pub head:         u32,
   pub tail:         u32,
   pub ring_mask:    u32,
-  pub ring_entires: u32,
+  pub ring_entries: u32,
   pub overflow:     u32,
   pub cqes:         u32,
   pub flags:        u32,
@@ -134,7 +134,7 @@ pub struct probe_op {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-pub struct probe<T: ?Sized> {
+pub struct probe<T: Sized> {
   pub last_op: u8,
   pub ops_len: u8,
   pub resv1:   u16,
@@ -162,7 +162,7 @@ pub struct buf {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-pub struct buf_ring<T: ?Sized> {
+pub struct buf_ring<T: Sized> {
   pub bufs: T,
 }
 

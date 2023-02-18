@@ -46,8 +46,8 @@ impl definitions::params {
       features: 0,
       wd_fd: 0,
       resv: [0, 0, 0],
-      sq_off: Default::default(),
-      cq_off: Default::default(),
+      sq_off: definitions::sqring_offsets::default(),
+      cq_off: definitions::cqring_offsets::default(),
     };
   }
 }
