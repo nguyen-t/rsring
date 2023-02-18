@@ -184,7 +184,7 @@ pub const IORING_OFF_SQES: i64    = 0x10000000;
  * sqring_offsets->flags flags
  */
 pub const IORING_SQ_NEED_WAKEUP: u32 = 1 << 0;
-pub const IORING_SQ_OVERFLOW: u32    = 1 << 1;
+pub const IORING_SQ_CQ_OVERFLOW: u32 = 1 << 1;
 pub const IORING_SQ_TASKRUN: u32     = 1 << 2;
 
 /*

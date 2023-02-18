@@ -22,7 +22,7 @@ pub struct sqe<T: Sized> {
   pub buf_select:  u16,
   pub personality: u16,
   pub file_select: u32,
-  pub add3:        T,
+  pub addr3:        T,
 }
 
 #[repr(C)]
