@@ -1,5 +1,5 @@
-mod ringmap;
+mod memmap;
 
 pub use {
-  ringmap::ring_map,
+  memmap::memmap,
 };
