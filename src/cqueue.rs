@@ -1,50 +1,28 @@
 use core::ffi::c_void;
-use std::mem::size_of;
 use std::sync::atomic::AtomicU32;
-use libc::munmap;
-use crate::util::ring_map;
 use crate::io_uring;
 
 #[derive(Debug, Clone)]
-pub struct CQueue {
-  pub ring:     *mut c_void,
-  pub size:     usize,
-  pub head:     *mut AtomicU32,
-  pub tail:     *mut AtomicU32,
-  pub mask:     *mut AtomicU32,
-  pub entries:  *mut AtomicU32,
-  pub overflow: *mut AtomicU32,
-  pub cqes:     *mut AtomicU32,
+pub struct CQueue<T: Sized> {
+  pub khead:     *const AtomicU32,
+  pub ktail:     *const AtomicU32,
+  pub kflags:    *const AtomicU32,
+  pub koverflow: *const AtomicU32,
+  pub cqes:      *mut io_uring::cqe<T>,
+  pub ring_mask:    u32,
+  pub ring_entries: u32,
 }
 
-impl CQueue {
-  pub fn new(fd: i32, params: &io_uring::params) -> CQueue {
-    let cqe_size = if (params.flags & io_uring::IORING_SETUP_CQE32) > 0 { 
-      size_of::<io_uring::cqe<[u64; 2]>>() 
-    }
-    else {
-      size_of::<io_uring::cqe<[u64; 0]>>() 
-    };
-    let size = params.cq_off.cqes as usize
-      + params.cq_entries as usize
-      * cqe_size as usize;
-    let ring = ring_map(fd, size, io_uring::IORING_OFF_CQ_RING);
-
+impl<T: Sized> CQueue<T> {
+  pub unsafe fn new(ring: *mut c_void, p: &io_uring::params) -> CQueue<T> {
     return CQueue {
-      ring: ring,
-      size: size,
-      head: unsafe { ring.add(params.cq_off.head as usize) } as *mut AtomicU32,
-      tail: unsafe { ring.add(params.cq_off.tail as usize) } as *mut AtomicU32,
-      mask: unsafe { ring.add(params.cq_off.ring_mask as usize) } as *mut AtomicU32,
-      entries: unsafe { ring.add(params.cq_off.ring_entires as usize) } as *mut AtomicU32,
-      overflow: unsafe { ring.add(params.cq_off.overflow as usize) } as *mut AtomicU32,
-      cqes: unsafe { ring.add(params.cq_off.cqes as usize) } as * mut AtomicU32,
+      khead: ring.add(p.cq_off.head as usize)         as *const AtomicU32,
+      ktail: ring.add(p.cq_off.tail as usize)         as *const AtomicU32,
+      kflags: ring.add(p.cq_off.flags as usize)       as *const AtomicU32,
+      koverflow: ring.add(p.cq_off.overflow as usize) as *const AtomicU32,
+      cqes: ring.add(p.cq_off.cqes as usize)          as *mut io_uring::cqe<T>,
+      ring_mask: ring.add(p.cq_off.ring_mask as usize).cast::<u32>().read(),
+      ring_entries: ring.add(p.cq_off.ring_entries as usize).cast::<u32>().read(),
     };
-  }
-}
-
-impl Drop for CQueue {
-  fn drop(&mut self) {
-    unsafe { munmap(self.ring, self.size) };
   }
 }
