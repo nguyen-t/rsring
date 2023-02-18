@@ -1,5 +1,5 @@
 mod memmap;
 
-pub use {
+pub(crate) use {
   memmap::memmap,
 };

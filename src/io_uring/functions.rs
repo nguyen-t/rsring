@@ -35,6 +35,24 @@ pub fn register(fd: c_int, opcode: c_uint, arg: *mut c_void, nr_args: c_uint) ->
   return if r < 0 { Err(Error::last_os_error()) } else { Ok(r as c_int) };
 }
 
+impl<T: Sized> definitions::sqe<T> {
+  pub fn get_data<U>(&self) -> *const T {
+    return self.user_data as *const T;
+  }
+
+  pub fn set_data<U>(&mut self, data: *mut U) {
+    self.user_data = data as u64;
+  }
+
+  pub fn get_data_u64(&self) -> u64 { 
+    return self.user_data;
+  }
+
+  pub fn set_data_u64(&mut self, data: u64) {
+    self.user_data = data;
+  }
+}
+
 impl definitions::params {
   pub fn new(flags: u32) -> definitions::params {
     return definitions::params {
