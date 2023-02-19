@@ -36,11 +36,11 @@ pub fn register(fd: c_int, opcode: c_uint, arg: *mut c_void, nr_args: c_uint) ->
 }
 
 impl<T: Sized> definitions::sqe<T> {
-  pub fn get_data<U>(&self) -> *const T {
-    return self.user_data as *const T;
+  pub fn get_data<U>(&self) -> *const U {
+    return self.user_data as *const U;
   }
 
-  pub fn set_data<U>(&mut self, data: *mut U) {
+  pub fn set_data<U>(&mut self, data: *const U) {
     self.user_data = data as u64;
   }
 
