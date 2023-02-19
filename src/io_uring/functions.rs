@@ -2,6 +2,7 @@ use core::ffi::{c_void, c_size_t, c_int, c_uint};
 use std::{io::Error, mem::size_of};
 use libc::{syscall, sigset_t, SYS_io_uring_setup, SYS_io_uring_enter, SYS_io_uring_register};
 use super::definitions;
+use super::constants::*;
 
 pub fn setup(entries: c_uint, p: *mut definitions::params) -> Result<c_int, Error> {
   let r = unsafe {
@@ -36,20 +37,59 @@ pub fn register(fd: c_int, opcode: c_uint, arg: *mut c_void, nr_args: c_uint) ->
 }
 
 impl<T: Sized> definitions::sqe<T> {
-  pub fn get_data<U>(&self) -> *const U {
-    return self.user_data as *const U;
-  }
-
-  pub fn set_data<U>(&mut self, data: *const U) {
+  pub fn set_data_ptr(&mut self, data: *const c_void) -> &Self {
     self.user_data = data as u64;
+
+    return self;
   }
 
-  pub fn get_data_u64(&self) -> u64 { 
-    return self.user_data;
-  }
-
-  pub fn set_data_u64(&mut self, data: u64) {
+  pub fn set_data_u64(&mut self, data: u64) -> &Self {
     self.user_data = data;
+
+    return self;
+  }
+
+  pub fn direct(&mut self, file_index: u32) -> &Self {
+    self.file_select = file_index + 1;
+
+    return self;
+  }
+
+  pub fn multishot(&mut self) -> &Self {
+    self.ioprio |= match self.opcode as u32 {
+      IORING_OP_RECVMSG  => IORING_RECV_MULTISHOT,
+      IORING_OP_POLL_ADD => IORING_POLL_ADD_MULTI,
+      IORING_OP_ACCEPT   => IORING_ACCEPT_MULTISHOT,
+      IORING_OP_RECV     => IORING_RECV_MULTISHOT,
+      _                  => 0,
+    } as u16;
+
+    return self;
+  }
+
+  pub fn zeroshot(&mut self, zc_flags: u16) -> &Self {
+    self.ioprio |= match self.opcode as u32 {
+      IORING_OP_SEND    => zc_flags,
+      IORING_OP_SENDMSG => zc_flags,
+      _                 => 0,
+    };
+    self.opcode = match self.opcode as u32 {
+      IORING_OP_SEND    => IORING_OP_SEND_ZC as u8,
+      IORING_OP_SENDMSG => IORING_OP_SENDMSG_ZC as u8,
+      _ => self.opcode,
+    };
+
+    return self;
+  }
+}
+
+impl<T: Sized> definitions::cqe<T> {
+  pub fn get_data_ptr(&self) -> *const c_void {
+    return self.user_data as *const c_void;
+  }
+
+  pub fn get_data_u64(&self) -> u64 {
+    return self.user_data;
   }
 }
 
