@@ -59,26 +59,28 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return Ok(submitted as i32);
   }
 
-  pub(crate) unsafe fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
+  pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
     let next = self.sq.sqe_tail + 1;
     let shift = ((self.flags & io_uring::IORING_SETUP_SQE128) > 0) as u32;
     let index = ((self.sq.sqe_tail & self.sq.ring_mask) << shift) as usize;
     let sqpoll = (self.flags & io_uring::IORING_SETUP_SQPOLL) > 0;
     let head = self.sq.get_khead(if sqpoll { Ordering::Acquire } else { Ordering::Relaxed });
-    let sqe = self.sq.sqes.add(index);
+    let sqe = unsafe { self.sq.sqes.add(index) };
 
     if (next - head) > self.sq.ring_entries {
       return None;
     }
     
-    memset(sqe as *mut c_void, 0, size_of::<io_uring::sqe<T>>());
-    (*sqe).opcode    = op as u8;
-    (*sqe).fd        = fd;
-    (*sqe).addr2     = offset;
-    (*sqe).addr1     = addr as u64;
-    (*sqe).len       = len;
-    (*sqe).op_flags  = flags;
-    self.sq.sqe_tail = next;
+    unsafe {
+      memset(sqe as *mut c_void, 0, size_of::<io_uring::sqe<T>>());
+      (*sqe).opcode    = op as u8;
+      (*sqe).fd        = fd;
+      (*sqe).addr2     = offset;
+      (*sqe).addr1     = addr as u64;
+      (*sqe).len       = len;
+      (*sqe).op_flags  = flags;
+      self.sq.sqe_tail = next;
+    }
 
     return Some(sqe);
   }

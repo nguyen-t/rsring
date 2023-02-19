@@ -1,5 +1,5 @@
 mod ring;
-mod functions;
+mod syscalls;
 
 pub use {
   ring::Ring,
