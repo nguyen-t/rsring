@@ -1,7 +1,7 @@
 use std::io::Error;
 use std::ptr;
 use std::mem::size_of;
-use libc::{c_void, sigset_t, sockaddr, socklen_t, munmap, memset, close};
+use libc::{c_void, sigset_t, munmap, memset, close};
 use std::sync::atomic::Ordering;
 
 use crate::io_uring;
@@ -10,7 +10,7 @@ use crate::squeue::SQueue;
 use crate::cqueue::CQueue;
 
 #[derive(Debug)]
-pub struct RSRing<T: Sized, U: Sized> {
+pub struct Ring<T: Sized, U: Sized> {
   pub ring:       *mut c_void,
   pub size:       usize,
   pub ring_fd:    i32,
@@ -21,8 +21,8 @@ pub struct RSRing<T: Sized, U: Sized> {
   pub cq:         CQueue<U>,
 }
 
-impl<T: Sized, U: Sized> RSRing<T, U> {
-  pub fn new(flags: u32, depth: u32) -> Result<RSRing<T, U>, Error> {
+impl<T: Sized, U: Sized> Ring<T, U> {
+  pub fn new(flags: u32, depth: u32) -> Result<Ring<T, U>, Error> {
     let mut p = io_uring::params::new(flags);
     let fd = match io_uring::setup(depth, ptr::addr_of_mut!(p)) {
       Ok(fd) => fd,
@@ -33,7 +33,7 @@ impl<T: Sized, U: Sized> RSRing<T, U> {
     let size = core::cmp::max(sq_size, cq_size);
     let ring = memmap(fd, size, io_uring::IORING_OFF_SQ_RING);
 
-    return Ok(RSRing {
+    return Ok(Ring {
       ring: ring,
       size: size,
       ring_fd: fd,
@@ -45,7 +45,21 @@ impl<T: Sized, U: Sized> RSRing<T, U> {
     });
   }
 
-  unsafe fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
+  pub fn submit(&mut self, submitted: u32, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
+    let cq_needs_enter = getevents || wait_nr > 0 || self.cq.needs_enter(self.flags);
+    let mut flags: u32 = 0;
+    
+    if self.sq.needs_enter(submitted, self.flags, &mut flags) || cq_needs_enter {
+      flags |= if cq_needs_enter { io_uring::IORING_ENTER_GET_EVENTS } else { 0 };
+      flags |= if self.registered { io_uring::IORING_ENTER_REGISTERED_RING } else { 0 };
+
+      return io_uring::enter(self.enter_fd, submitted, wait_nr, flags, ptr::null_mut::<sigset_t>());
+    }
+
+    return Ok(submitted as i32);
+  }
+
+  pub(crate) unsafe fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
     let next = self.sq.sqe_tail + 1;
     let shift = ((self.flags & io_uring::IORING_SETUP_SQE128) > 0) as u32;
     let index = ((self.sq.sqe_tail & self.sq.ring_mask) << shift) as usize;
@@ -68,29 +82,9 @@ impl<T: Sized, U: Sized> RSRing<T, U> {
 
     return Some(sqe);
   }
-
-  pub fn accept4(&mut self, sockfd: i32, addr: *mut sockaddr, addrlen: *mut socklen_t, flags: u32) -> Option<*mut io_uring::sqe<T>> {
-    unsafe { 
-      return self.prep(io_uring::IORING_OP_ACCEPT, sockfd, addr as *mut c_void, 0, addrlen as u64, flags);
-    };
-  }
-
-  pub fn submit(&mut self, submitted: u32, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
-    let cq_needs_enter = getevents || wait_nr > 0 || self.cq.needs_enter(self.flags);
-    let mut flags: u32 = 0;
-    
-    if self.sq.needs_enter(submitted, self.flags) || cq_needs_enter {
-      flags |= if cq_needs_enter { io_uring::IORING_ENTER_GET_EVENTS } else { 0 };
-      flags |= if self.registered { io_uring::IORING_ENTER_REGISTERED_RING } else { 0 };
-
-      return io_uring::enter(self.enter_fd, submitted, wait_nr, flags, ptr::null_mut::<sigset_t>());
-    }
-
-    return Ok(submitted as i32);
-  }
 }
 
-impl<T: Sized, U: Sized> Drop for RSRing<T, U> {
+impl<T: Sized, U: Sized> Drop for Ring<T, U> {
   fn drop(&mut self) {
     unsafe { 
       munmap(self.ring, self.size);

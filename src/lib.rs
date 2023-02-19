@@ -6,17 +6,5 @@ mod cqueue;
 mod ring;
 
 pub use {
-  ring::RSRing,
+  ring::Ring,
 };
-
-// #[cfg(test)]
-// mod rsring_tests {
-//   use crate::RSRing;
-//   #[test]
-//   fn init_test() -> Result<(), String> {
-//     return match RSRing::new(3, 0) {
-//       Ok(_) => Ok(()),
-//       Err(err) => Err(err.to_string())
-//     };
-//   }
-// }

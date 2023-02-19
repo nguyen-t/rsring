@@ -79,7 +79,7 @@ impl<T: Sized> SQueue<T> {
     return unsafe { self.kdropped.read().store(data, order) };
   }
 
-  pub fn needs_enter(&self, submit: u32, flags: u32) -> bool {
+  pub fn needs_enter(&self, submit: u32, flags: u32, wakeup: &mut u32) -> bool {
     if submit == 0 {
       return false;
     }
@@ -90,6 +90,8 @@ impl<T: Sized> SQueue<T> {
     fence(Ordering::SeqCst);
 
     if (self.get_kflags(Ordering::Relaxed) & io_uring::IORING_SQ_NEED_WAKEUP) == 0 {
+      *wakeup |= io_uring::IORING_ENTER_SQ_WAKEUP;
+
       return true;
     }
 
