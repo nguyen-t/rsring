@@ -35,7 +35,7 @@ pub const IORING_SETUP_SINGLE_ISSUER: u32 = 1 << 12;
 pub const IORING_SETUP_DEFER_TASKRUN: u32 = 1 << 13;
 
 /*
- * 
+ * sqe->opcode
  */
 pub const IORING_OP_NOP: u32             = 0;
 pub const IORING_OP_READV: u32           = 1;
@@ -116,7 +116,7 @@ pub const IORING_TIMEOUT_UPDATE_MASK: u32   = IORING_TIMEOUT_UPDATE | IORING_LIN
 pub const SPLICE_F_FD_IN_FIXED: u32 = 1 << 31;
 
 /*
- * POLL_ADD flags
+ * sqe->poll_events flags
  */
 pub const IORING_POLL_ADD_MULTI: u32        = 1 << 0;
 pub const IORING_POLL_UPDATE_EVENTS: u32    = 1 << 1;
@@ -124,7 +124,7 @@ pub const IORING_POLL_UPDATE_USER_DATA: u32 = 1 << 2;
 pub const IORING_POLL_ADD_LEVEL: u32        = 1 << 3;
 
 /*
- *
+ * sqe->async_cancel flags
  */
 pub const IORING_ASYNC_CANCEL_ALL: u32   = 1 << 0;
 pub const IORING_ASYNC_CANCEL_FD: u32    = 1 << 1;
@@ -199,7 +199,7 @@ pub const IORING_CQ_EVENTFD_DISABLED: u32 = 1 << 0;
 /*
  * io_uring_enter2() flags
  */
-pub const IORING_ENTER_GET_EVENTS: u32      = 1 << 0;
+pub const IORING_ENTER_GETEVENTS: u32       = 1 << 0;
 pub const IORING_ENTER_SQ_WAKEUP: u32       = 1 << 1;
 pub const IORING_ENTER_SQ_WAIT: u32         = 1 << 2;
 pub const IORING_ENTER_EXT_ARG: u32         = 1 << 3;
