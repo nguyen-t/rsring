@@ -1,17 +1,18 @@
 mod ring;
-// mod syscalls;
+mod syscalls;
 
-pub type RSRing     = ring::Ring<[u64; 2], [u8; 0]>;
-pub type RSRingNVMe = ring::Ring<[u8; 80], [u8; 16]>;
+pub use {
+  ring::Ring,
+};
 
 #[cfg(test)]
 mod ring_tests {
-  use crate::ring::RSRing;
+  use crate::ring::Ring;
   use crate::io_uring::*;
 
   #[test]
   fn init_test() -> Result<(), String> {
-    return match RSRing::new(32) {
+    return match Ring::<[u64; 2], [u8; 0]>::new(32) {
       Ok(_) => Ok(()),
       Err(err) => Err(err.to_string())
     };
@@ -19,7 +20,7 @@ mod ring_tests {
 
   #[test]
   fn features_test() -> Result<(), String> {
-    let ring = match RSRing::new(32) {
+    let ring = match Ring::<[u64; 2], [u8; 0]>::new(32) {
       Ok(ring) => ring,
       Err(err) => return Err(err.to_string())
     };
