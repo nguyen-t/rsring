@@ -5,6 +5,5 @@ mod squeue;
 mod cqueue;
 mod ring;
 
-pub use {
-  ring::Ring,
-};
+pub type RSRing  = ring::Ring<[u64; 2], [u8; 0]>;
+pub type RSRingL = ring::Ring<[u8; 80], [u8; 16]>;
