@@ -2,7 +2,7 @@ use core::ffi::c_void;
 use std::mem::size_of;
 use std::sync::atomic::{AtomicU32, Ordering, fence};
 use libc::munmap;
-use crate::io_uring;
+use crate::io_uring::{self, *};
 use crate::util::memmap;
 
 #[derive(Debug)]
@@ -60,55 +60,46 @@ impl<T: Sized> SQueue<T> {
   }
 
   #[inline]
+  pub fn get_array(&self, index: usize, order: Ordering) -> u32 {
+    return unsafe { self.array.add(index).read().load(order) };
+  }
+
+  #[inline]
   pub fn set_khead(&self, data: u32, order: Ordering) {
     return unsafe { self.khead.read().store(data, order) };
   }
 
   #[inline]
-  pub fn set_ktail(&self, data: u32, order: Ordering) {
+  pub fn set_ktail(&mut self, data: u32, order: Ordering) {
     return unsafe { self.ktail.read().store(data, order) };
   }
 
   #[inline]
-  pub fn set_kflags(&self, data: u32, order: Ordering) {
+  pub fn set_kflags(&mut self, data: u32, order: Ordering) {
     return unsafe { self.kflags.read().store(data, order) };
   }
 
   #[inline]
-  pub fn set_kdropped(&self, data: u32, order: Ordering) {
+  pub fn set_kdropped(&mut self, data: u32, order: Ordering) {
     return unsafe { self.kdropped.read().store(data, order) };
   }
 
-  pub fn needs_enter(&self, submit: u32, flags: u32, wakeup: &mut u32) -> bool {
-    if submit == 0 {
+  #[inline]
+  pub fn set_array(&mut self, index: usize, data: u32, order: Ordering) {
+    return unsafe { self.array.add(index).read().store(data, order) };
+  }
+
+  #[inline]
+  pub(crate) fn needs_enter(&self, to_submit: u32) -> bool {
+    if to_submit == 0 {
       return false;
-    }
-    if (flags & io_uring::IORING_SETUP_SQPOLL) == 0 {
-      return true;
     }
 
     fence(Ordering::SeqCst);
-
-    if (self.get_kflags(Ordering::Relaxed) & io_uring::IORING_SQ_NEED_WAKEUP) == 0 {
-      *wakeup |= io_uring::IORING_ENTER_SQ_WAKEUP;
-
-      return true;
-    }
-
-    return false;
+    
+    return (self.get_kflags(Ordering::Relaxed) & IORING_SQ_NEED_WAKEUP) > 0;
   }
 
-  pub unsafe fn flush_sq(&mut self, flags: u32) -> u32 {
-    let tail = self.sqe_tail;
-    let sqpoll = (flags & io_uring::IORING_SETUP_SQPOLL) > 0;
-
-    if self.sqe_head != tail {
-      self.sqe_head = tail;
-      self.ktail.read().store(tail, if sqpoll { Ordering::Release } else { Ordering::Relaxed });
-    }
-
-    return tail - self.khead.read().load(Ordering::Relaxed);
-  }
 }
 
 impl<T: Sized> Drop for SQueue<T> {

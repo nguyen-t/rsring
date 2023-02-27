@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 use std::sync::atomic::{AtomicU32, Ordering};
-use crate::io_uring;
+use crate::io_uring::{self, *};
 
 #[derive(Debug, Clone)]
 pub struct CQueue<T: Sized> {
@@ -66,13 +66,13 @@ impl<T: Sized> CQueue<T> {
     return unsafe { self.koverflow.read().store(data, order) };
   }
 
-  pub fn needs_flush(&self) -> bool {
-    let flags = io_uring::IORING_SQ_CQ_OVERFLOW | io_uring::IORING_SQ_TASKRUN;
-    
-    return (self.get_kflags(Ordering::Relaxed) & flags) > 0;
+  #[inline]
+  pub(crate) fn needs_flush(&self) -> bool {
+    return (self.get_kflags(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN)) > 0;
   }
 
-  pub fn needs_enter(&self, flags: u32) -> bool {
-    return (flags & io_uring::IORING_SETUP_IOPOLL) > 0 || self.needs_flush();
+  #[inline]
+  pub(crate) fn needs_enter(&self) -> bool {
+    return self.needs_flush();
   }
 }
