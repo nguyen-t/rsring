@@ -2,7 +2,7 @@ use libc::{timespec};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-struct __kernel_timespec {
+pub struct __kernel_timespec {
   pub tv_sec:  i64,
   pub tv_nsec: i64,
 }
@@ -178,7 +178,7 @@ pub struct buf_reg {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-pub struct getevents_args {
+pub struct getevents_arg {
   pub sigmask:    u64,
   pub sigmask_sz: u32,
   pub pad:        u32,

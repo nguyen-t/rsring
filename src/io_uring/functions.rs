@@ -13,7 +13,7 @@ pub fn setup(entries: c_uint, p: *mut definitions::params) -> Result<c_int, Erro
   return if r < 0 { Err(Error::last_os_error()) } else { Ok(r as c_int) };
 }
 
-pub fn enter(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, sig: *mut sigset_t) -> Result<c_int, Error> {
+pub fn enter(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, sig: *const sigset_t) -> Result<c_int, Error> {
   let r = unsafe {
     syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, sig, size_of::<sigset_t>())
   };
@@ -21,7 +21,7 @@ pub fn enter(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, 
   return if r < 0 { Err(Error::last_os_error()) } else { Ok(r as c_int) };
 }
 
-pub fn enter2(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, arg: *mut c_void, argsz: c_size_t) -> Result<c_int, Error> {
+pub fn enter2(fd: c_int, to_submit: c_uint, min_complete: c_uint, flags: c_uint, arg: *const c_void, argsz: c_size_t) -> Result<c_int, Error> {
   let r = unsafe {
     syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, arg, argsz)
   };

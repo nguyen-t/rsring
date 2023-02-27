@@ -67,7 +67,7 @@ mod size_tests {
 
   #[test]
   fn events_size() {
-    assert_eq!(size_of::<getevents_args>(), 24);
+    assert_eq!(size_of::<getevents_arg>(), 24);
   }
 
   #[test]
