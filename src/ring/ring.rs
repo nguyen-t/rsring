@@ -1,10 +1,11 @@
 use std::io::Error;
 use std::ptr;
 use std::mem::size_of;
-use libc::{c_void, sigset_t, munmap, memset, close};
+use std::ffi::c_void;
+use libc::{sigset_t, munmap, close};
 use std::sync::atomic::Ordering;
 
-use crate::io_uring;
+use crate::io_uring::{self, *};
 use crate::util::memmap;
 use crate::squeue::SQueue;
 use crate::cqueue::CQueue;
@@ -16,14 +17,15 @@ pub struct Ring<T: Sized, U: Sized> {
   pub ring_fd:    i32,
   pub enter_fd:   i32,
   pub flags:      u32,
+  pub features:   u32,
   pub registered: bool,
   pub sq:         SQueue<T>,
   pub cq:         CQueue<U>,
 }
 
 impl<T: Sized, U: Sized> Ring<T, U> {
-  pub fn new(flags: u32, depth: u32) -> Result<Ring<T, U>, Error> {
-    let mut p = io_uring::params::new(flags);
+  pub fn new(depth: u32) -> Result<Ring<T, U>, Error> {
+    let mut p = io_uring::params::new(Ring::<T, U>::init_flags());
     let fd = match io_uring::setup(depth, ptr::addr_of_mut!(p)) {
       Ok(fd) => fd,
       Err(e) => return Err(e)
@@ -31,58 +33,68 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let sq_size = p.sq_off.array as usize + p.sq_entries as usize * size_of::<u32>();
     let cq_size = p.cq_off.cqes as usize + p.cq_entries as usize * size_of::<io_uring::cqe<T>>();
     let size = core::cmp::max(sq_size, cq_size);
-    let ring = memmap(fd, size, io_uring::IORING_OFF_SQ_RING);
+    let ring = memmap(fd, size, IORING_OFF_SQ_RING);
+    let mut sq = unsafe { SQueue::<T>::new(ring, &p, fd) };
+    let cq = unsafe { CQueue::<U>::new(ring, &p) };
+
+    for i in 0..sq.ring_entries {
+      sq.set_array(i as usize, i as u32, Ordering::Relaxed);
+    }
 
     return Ok(Ring {
       ring: ring,
       size: size,
       ring_fd: fd,
       enter_fd: fd,
-      flags: flags,
+      flags: p.flags,
+      features: p.features,
       registered: false,
-      sq: unsafe { SQueue::<T>::new(ring, &p, fd) },
-      cq: unsafe { CQueue::<U>::new(ring, &p) },
+      sq: sq,
+      cq: cq,
     });
   }
 
-  pub fn submit(&mut self, submitted: u32, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
-    let cq_needs_enter = getevents || wait_nr > 0 || self.cq.needs_enter(self.flags);
-    let mut flags: u32 = 0;
-    
-    if self.sq.needs_enter(submitted, self.flags, &mut flags) || cq_needs_enter {
-      flags |= if cq_needs_enter { io_uring::IORING_ENTER_GET_EVENTS } else { 0 };
-      flags |= if self.registered { io_uring::IORING_ENTER_REGISTERED_RING } else { 0 };
+  pub fn submit(&self, to_submit: u32, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
+    let sq_enter = self.sq.needs_enter(to_submit);
+    let cq_enter = self.cq.needs_enter();
+    let self_enter = getevents || wait_nr > 0 || self.has_flag(IORING_SETUP_IOPOLL) || !self.has_flag(IORING_SETUP_SQPOLL);
 
-      return io_uring::enter(self.enter_fd, submitted, wait_nr, flags, ptr::null_mut::<sigset_t>());
+    if self_enter || sq_enter || cq_enter {
+      let flags = 0 // TODO: self.int_flags & INT_FLAG_REG_RING
+      | IORING_SQ_NEED_WAKEUP * (sq_enter as u32)
+      | IORING_ENTER_GETEVENTS * (cq_enter as u32);
+      
+      return io_uring::enter(self.enter_fd, to_submit, wait_nr, flags, ptr::null_mut::<sigset_t>());
     }
 
-    return Ok(submitted as i32);
+    return Ok(to_submit as i32);
   }
 
-  pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
-    let next = self.sq.sqe_tail + 1;
-    let shift = ((self.flags & io_uring::IORING_SETUP_SQE128) > 0) as u32;
-    let index = ((self.sq.sqe_tail & self.sq.ring_mask) << shift) as usize;
-    let sqpoll = (self.flags & io_uring::IORING_SETUP_SQPOLL) > 0;
-    let head = self.sq.get_khead(if sqpoll { Ordering::Acquire } else { Ordering::Relaxed });
-    let sqe = unsafe { self.sq.sqes.add(index) };
+  pub(crate) fn init_flags() -> u32 {
+    let sqe_setup = match size_of::<SQueue<T>>() {
+      64  => 0,
+      128 => IORING_SETUP_SQE128,
+      _   => 0,
+    };
+    let cqe_setup = match size_of::<CQueue<T>>() {
+      16 => 0,
+      32 => IORING_SETUP_CQE32,
+      _  => 0,
+    };
 
-    if (next - head) > self.sq.ring_entries {
-      return None;
-    }
-    
-    unsafe {
-      memset(sqe as *mut c_void, 0, size_of::<io_uring::sqe<T>>());
-      (*sqe).opcode    = op as u8;
-      (*sqe).fd        = fd;
-      (*sqe).addr2     = offset;
-      (*sqe).addr1     = addr as u64;
-      (*sqe).len       = len;
-      (*sqe).op_flags  = flags;
-      self.sq.sqe_tail = next;
-    }
+    return IORING_SETUP_SQPOLL
+    // | IORING_SETUP_R_DISABLED
+    | IORING_SETUP_SUBMIT_ALL
+    | sqe_setup 
+    | cqe_setup;
+  }
 
-    return Some(sqe);
+  pub(crate) fn has_flag(&self, flag: u32) -> bool {
+    return (self.flags & flag) > 0;
+  }
+
+  pub(crate) fn has_feature(&self, features: u32) -> bool {
+    return (self.flags & features) > 0;
   }
 }
 

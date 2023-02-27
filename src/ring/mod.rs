@@ -1,5 +1,9 @@
 mod ring;
+mod sq;
+mod cq;
 mod syscalls;
+
+pub(crate) const RING_TIMEOUT: u64 = !0;
 
 pub use {
   ring::Ring,
