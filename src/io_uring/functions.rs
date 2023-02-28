@@ -1,11 +1,11 @@
 use core::ffi::{c_void, c_size_t, c_int, c_uint};
 use std::{io::Error, mem::size_of};
 use libc::{syscall, sigset_t, SYS_io_uring_setup, SYS_io_uring_enter, SYS_io_uring_register};
-use super::definitions;
+use super::definitions::*;
 use super::constants::*;
 
 /* Rust wrapper for io_uring syscalls */
-pub fn setup(entries: c_uint, p: *mut definitions::params) -> Result<c_int, Error> {
+pub fn setup(entries: c_uint, p: *mut params) -> Result<c_int, Error> {
   let r = unsafe {
     syscall(SYS_io_uring_setup, entries, p)
   };
@@ -37,7 +37,16 @@ pub fn register(fd: c_int, opcode: c_uint, arg: *mut c_void, nr_args: c_uint) ->
   return if r < 0 { Err(Error::last_os_error()) } else { Ok(r as c_int) };
 }
 
-impl<T: Sized> definitions::sqe<T> {
+impl __kernel_timespec {
+  pub fn from_ms(ms: i64) -> __kernel_timespec {
+    return __kernel_timespec {
+      tv_sec:  (ms / 1000) as i64,
+      tv_nsec: ((ms % 1000) * 1000000) as i64,
+    };
+  }
+}
+
+impl<T: Sized> sqe<T> {
   /* Sets user data field for pointer types */
   pub fn set_data_ptr(&mut self, data: *const c_void) -> &Self {
     self.user_data = data as u64;
@@ -89,7 +98,7 @@ impl<T: Sized> definitions::sqe<T> {
   }
 }
 
-impl<T: Sized> definitions::cqe<T> {
+impl<T: Sized> cqe<T> {
   /* Gets user data field for pointer types */
   pub fn get_data_ptr(&self) -> *const c_void {
     return self.user_data as *const c_void;
@@ -101,9 +110,9 @@ impl<T: Sized> definitions::cqe<T> {
   }
 }
 
-impl definitions::params {
-  pub fn new(flags: u32) -> definitions::params {
-    return definitions::params {
+impl params {
+  pub fn new(flags: u32) -> params {
+    return params {
       sq_entries: 0,
       cq_entries: 0,
       flags: flags,
@@ -112,8 +121,21 @@ impl definitions::params {
       features: 0,
       wd_fd: 0,
       resv: [0, 0, 0],
-      sq_off: definitions::sqring_offsets::default(),
-      cq_off: definitions::cqring_offsets::default(),
+      sq_off: sqring_offsets::default(),
+      cq_off: cqring_offsets::default(),
+    };
+  }
+}
+
+impl getevents_arg {
+  pub fn new(mask: *const sigset_t, ts: *const __kernel_timespec) -> getevents_arg {
+    const _NSIG: u32 = 64;
+
+    return getevents_arg {
+      sigmask:    mask as u64,
+      sigmask_sz: (_NSIG) / 8,
+      pad:        0,
+      ts:         ts as *const __kernel_timespec as u64,
     };
   }
 }
