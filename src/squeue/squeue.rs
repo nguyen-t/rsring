@@ -90,11 +90,7 @@ impl<T: Sized> SQueue<T> {
   }
 
   #[inline]
-  pub(crate) fn needs_enter(&self, to_submit: u32) -> bool {
-    if to_submit == 0 {
-      return false;
-    }
-
+  pub(crate) fn needs_wakeup(&self) -> bool {
     fence(Ordering::SeqCst);
     
     return (self.get_kflags(Ordering::Relaxed) & IORING_SQ_NEED_WAKEUP) > 0;

@@ -70,9 +70,4 @@ impl<T: Sized> CQueue<T> {
   pub(crate) fn needs_flush(&self) -> bool {
     return (self.get_kflags(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN)) > 0;
   }
-
-  #[inline]
-  pub(crate) fn needs_enter(&self) -> bool {
-    return self.needs_flush();
-  }
 }
