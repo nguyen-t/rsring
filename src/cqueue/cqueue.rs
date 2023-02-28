@@ -27,47 +27,18 @@ impl<T: Sized> CQueue<T> {
   }
 
   #[inline]
-  pub fn get_khead(&self, order: Ordering) -> u32 {
-    return unsafe { self.khead.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_ktail(&self, order: Ordering) -> u32 {
-    return unsafe { self.ktail.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_kflags(&self, order: Ordering) -> u32 {
-    return unsafe { self.kflags.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_koverflow(&self, order: Ordering) -> u32 {
-    return unsafe { self.koverflow.read().load(order) };
-  }
-
-  #[inline]
-  pub fn set_khead(&self, data: u32, order: Ordering) {
-    return unsafe { self.khead.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_ktail(&self, data: u32, order: Ordering) {
-    return unsafe { self.ktail.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_kflags(&self, data: u32, order: Ordering) {
-    return unsafe { self.kflags.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_overflow(&self, data: u32, order: Ordering) {
-    return unsafe { self.koverflow.read().store(data, order) };
+  pub fn overflowed(&self) -> bool {
+    unsafe {
+      return (self.kflags.read().load(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW)) > 0;
+    };
   }
 
   #[inline]
   pub(crate) fn needs_flush(&self) -> bool {
-    return (self.get_kflags(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN)) > 0;
+    unsafe {
+      return (self.kflags.read().load(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN)) > 0;
+    };
   }
+
+
 }

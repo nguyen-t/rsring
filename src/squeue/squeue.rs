@@ -40,60 +40,12 @@ impl<T: Sized> SQueue<T> {
   }
 
   #[inline]
-  pub fn get_khead(&self, order: Ordering) -> u32 {
-    return unsafe { self.khead.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_ktail(&self, order: Ordering) -> u32 {
-    return unsafe { self.ktail.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_kflags(&self, order: Ordering) -> u32 {
-    return unsafe { self.kflags.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_kdropped(&self, order: Ordering) -> u32 {
-    return unsafe { self.kdropped.read().load(order) };
-  }
-
-  #[inline]
-  pub fn get_array(&self, index: usize, order: Ordering) -> u32 {
-    return unsafe { self.array.add(index).read().load(order) };
-  }
-
-  #[inline]
-  pub fn set_khead(&self, data: u32, order: Ordering) {
-    return unsafe { self.khead.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_ktail(&mut self, data: u32, order: Ordering) {
-    return unsafe { self.ktail.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_kflags(&mut self, data: u32, order: Ordering) {
-    return unsafe { self.kflags.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_kdropped(&mut self, data: u32, order: Ordering) {
-    return unsafe { self.kdropped.read().store(data, order) };
-  }
-
-  #[inline]
-  pub fn set_array(&mut self, index: usize, data: u32, order: Ordering) {
-    return unsafe { self.array.add(index).read().store(data, order) };
-  }
-
-  #[inline]
   pub(crate) fn needs_wakeup(&self) -> bool {
     fence(Ordering::SeqCst);
     
-    return (self.get_kflags(Ordering::Relaxed) & IORING_SQ_NEED_WAKEUP) > 0;
+    unsafe { 
+      return (self.kflags.read().load(Ordering::Relaxed) & IORING_SQ_NEED_WAKEUP) > 0;
+    };
   }
 
 }
