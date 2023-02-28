@@ -22,6 +22,17 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return Some(unsafe { self.sq.sqes.add(index as usize) });
   }
 
+  pub(crate) fn sqe_flush(&mut self) -> u32 {
+    let tail = self.sq.sqe_tail;
+
+    if self.sq.sqe_head != tail {
+      self.sq.sqe_head = tail;
+      self.sq.set_ktail(tail, if self.has_flag(IORING_SETUP_SQPOLL) { Ordering::Release } else { Ordering::Relaxed });
+    }
+
+    return tail - self.sq.get_khead(Ordering::Relaxed);
+  }
+
   pub(crate) fn sqe_prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
     let sqe = self.sqe_get()?;
 
