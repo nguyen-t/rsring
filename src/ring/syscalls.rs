@@ -45,7 +45,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   #[inline]
-	pub fn accept4(&mut self, sockfd: c_int, addr: *const sockaddr, addrlen: *const socklen_t, flags: c_int) -> Option<*mut io_uring::sqe<T>> {
+	pub fn accept4(&mut self, sockfd: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t, flags: c_int) -> Option<*mut io_uring::sqe<T>> {
     return self.sqe_prep(IORING_OP_ACCEPT, sockfd, addr as *mut c_void, 0, addrlen as u64, flags as u32);
   }
 
@@ -94,15 +94,15 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return self.sqe_prep(IORING_OP_MADVISE, -1, addr, length as u32, 0, advice as u32);
   }
 
-  // #[inline]
-	// pub fn send(&mut self, fd: c_int) -> Option<*mut io_uring::sqe<T>> {
-  //   return self.call();
-  // }
+  #[inline]
+	pub fn send(&mut self, sockfd: c_int, buf: *const c_void, len: size_t, flags: c_int) -> Option<*mut io_uring::sqe<T>> {
+    return self.sqe_prep(IORING_OP_SEND, sockfd, buf, len as u32, 0, flags as u32);
+  }
 
-  // #[inline]
-	// pub fn recv(&mut self, fd: c_int) -> Option<*mut io_uring::sqe<T>> {
-  //   return self.call();
-  // }
+  #[inline]
+	pub fn recv(&mut self, sockfd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> Option<*mut io_uring::sqe<T>> {
+    return self.sqe_prep(IORING_OP_RECV, sockfd, buf, len as u32, 0, flags as u32);
+  }
 
   // #[inline]
 	// pub fn openat2(&mut self, fd: c_int) -> Option<*mut io_uring::sqe<T>> {
