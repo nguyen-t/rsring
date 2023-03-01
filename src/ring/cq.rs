@@ -10,7 +10,7 @@ use crate::io_uring::{self, *};
 impl<T: Sized, U: Sized> Ring<T, U> {
   pub(crate) fn cqe_advance(&mut self, nr: u32) {
     unsafe {
-      (*self.cq.khead).store((*self.cq.khead).load(Ordering::Relaxed) + nr, Ordering::Release);
+      (*self.cq.khead).store((*self.cq.khead).load(Ordering::Acquire) + nr, Ordering::Release);
     };
   }
 
@@ -20,7 +20,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     loop {
       let tail = unsafe { (*self.cq.ktail).load(Ordering::Acquire) };
-      let head = unsafe { (*self.cq.khead).load(Ordering::Relaxed) };
+      let head = unsafe { (*self.cq.khead).load(Ordering::Acquire) };
       let available = tail - head;
 
       if available == 0 {
@@ -114,27 +114,20 @@ impl<T: Sized, U: Sized> Ring<T, U> {
         flags |= IORING_ENTER_REGISTERED_RING;
       }
 
-      println!("SUBMIT: {}", submit);
-      println!("WAIT_NR: {}", wait_nr);
-      println!("FLAGS: {:#032b}", flags);
-
       let ret = match io_uring::enter2(self.enter_fd, submit, wait_nr, flags, ptr, size) {
         Ok(ret) => ret,
         Err(err) => return Err(if error == 0 { Error::from_raw_os_error(error) } else { err }),
       };
-      println!("HERE 0");
 
       submit -= ret as u32;
 
       if cqe.is_some() {
         return Ok(cqe);
       }
-      println!("HERE 1");
       if !looped {
         looped = true;
         error = ret;
       }
-      println!("HERE 2");
     }
   }
 

@@ -3,7 +3,6 @@ use std::ptr;
 use std::mem::size_of;
 use std::ffi::c_void;
 use libc::{sigset_t, munmap, close};
-use std::sync::atomic::Ordering;
 
 use crate::io_uring::{self, *};
 use crate::util::memmap;
@@ -39,7 +38,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     for i in 0..sq.ring_entries {
       unsafe {
-        (*sq.array.add(i as usize)).store(i as _, Ordering::Relaxed);
+        *sq.array.add(i as usize) = i as u32;
       };
     }
 
@@ -94,9 +93,8 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       _  => 0,
     };
 
-    // return IORING_SETUP_SQPOLL
-    // | IORING_SETUP_SUBMIT_ALL
-    return 0
+    return IORING_SETUP_SQPOLL
+    | IORING_SETUP_SUBMIT_ALL
     | sqe_setup 
     | cqe_setup;
   }

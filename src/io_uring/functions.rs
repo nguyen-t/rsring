@@ -135,7 +135,7 @@ impl getevents_arg {
       sigmask:    mask as u64,
       sigmask_sz: (_NSIG) / 8,
       pad:        0,
-      ts:         ts as *const __kernel_timespec as u64,
+      ts:         ts as u64,
     };
   }
 }

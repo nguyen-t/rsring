@@ -10,9 +10,8 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   pub(crate) fn sqe_get(&mut self) -> Option<*mut io_uring::sqe<T>> {
     let shift = if self.has_flag(IORING_SETUP_SQE128) { 1 } else { 0 };
     let index = (self.sq.sqe_tail & self.sq.ring_mask) << shift;
-    let order = if self.has_flag(IORING_SETUP_SQPOLL) { Ordering::Acquire } else { Ordering::Relaxed };
     let next = self.sq.sqe_tail + 1;
-    let head = unsafe { (*self.sq.khead).load(order) };
+    let head = unsafe { (*self.sq.khead).load(Ordering::Acquire) };
 
     if (next - head) > self.sq.ring_entries {
       return None;
@@ -26,15 +25,13 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   pub(crate) fn sqe_flush(&mut self) -> u32 {
     let tail = self.sq.sqe_tail;
 
-    if self.sq.sqe_head != tail {
-      let order = if self.has_flag(IORING_SETUP_SQPOLL) { Ordering::Release } else { Ordering::Relaxed };
-      
+    if self.sq.sqe_head != tail {      
       self.sq.sqe_head = tail;
 
-      unsafe { (*self.sq.ktail).store(tail, order) };
+      unsafe { (*self.sq.ktail).store(tail, Ordering::Release) };
     }
 
-    return tail - unsafe { (*self.sq.khead).load(Ordering::Relaxed) };
+    return tail - unsafe { (*self.sq.khead).load(Ordering::Acquire) };
   }
 
   pub(crate) fn sqe_prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
