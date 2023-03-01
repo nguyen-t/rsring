@@ -7,11 +7,11 @@ use libc::{sigset_t, EAGAIN, ETIME};
 use crate::ring::{Ring, RING_TIMEOUT};
 use crate::io_uring::{self, *};
 
-const _NSIG: u32 = 64;
-
 impl<T: Sized, U: Sized> Ring<T, U> {
   pub(crate) fn cqe_advance(&mut self, nr: u32) {
-    self.cq.set_khead(self.cq.get_khead(Ordering::Relaxed) + nr, Ordering::Release);
+    unsafe {
+      (*self.cq.khead).store((*self.cq.khead).load(Ordering::Relaxed) + nr, Ordering::Release);
+    };
   }
 
   pub(crate) fn cqe_peek(&mut self) -> Result<(Option<*mut io_uring::cqe<U>>, u32), Error> {
@@ -19,21 +19,25 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let shift = self.has_flag(IORING_SETUP_CQE32) as u32;
 
     loop {
-      let tail = self.cq.get_ktail(Ordering::Acquire);
-      let head = self.cq.get_khead(Ordering::Relaxed);
-      let index = (head & mask) << shift;
+      let tail = unsafe { (*self.cq.ktail).load(Ordering::Acquire) };
+      let head = unsafe { (*self.cq.khead).load(Ordering::Relaxed) };
       let available = tail - head;
-      let cqe = unsafe { self.cq.cqes.add(index as usize) };
 
       if available == 0 {
         return Ok((None, 0));
       }
-      if !self.has_feature(IORING_FEAT_EXT_ARG) && unsafe { cqe.read().user_data == RING_TIMEOUT } {
-        let res = unsafe { cqe.read().res };
+
+      let index = (head & mask) << shift;
+      let cqe = unsafe { self.cq.cqes.add(index as usize) };
+      let ext_arg = self.has_feature(IORING_FEAT_EXT_ARG);
+      let timeout = unsafe { (*cqe).user_data == RING_TIMEOUT };
+
+      if !ext_arg && timeout {
+        let res = unsafe { (*cqe).res };
        
         self.cqe_advance(1);
 
-        if res == 0 {
+        if res >= 0 {
           continue;
         }
         
@@ -44,62 +48,93 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     };
   }
 
-  pub fn cqe_get(&mut self, submit: u32, min_complete: u32, get_flags: u32, mask: *const sigset_t, ms: u64) -> Result<Option<*mut io_uring::cqe<U>>, Error> {
+  pub(crate) fn cqe_get(&mut self, to_submit: u32, wait_nr: u32, get_flags: u32, mask: *const sigset_t, ms: u64) -> Result<Option<*mut io_uring::cqe<U>>, Error> {
     let mut looped = false;
-    let mut to_submit = submit;
-    let ts = __kernel_timespec {
-      tv_sec:  (ms / 1000) as i64,
-      tv_nsec: ((ms % 1000) * 1000000) as i64,
-    };
-    let arg = io_uring::getevents_arg {
-      sigmask:    mask as u64,
-      sigmask_sz: (_NSIG) / 8,
-      pad:        0,
-      ts:         &ts as *const __kernel_timespec as u64,
-    };
+    let mut error = 0;
+    let mut submit = to_submit;
+    let ts = __kernel_timespec::from_ms(ms as i64);
+    let arg = io_uring::getevents_arg::new(mask, &ts);
     let ptr = match (get_flags & IORING_ENTER_EXT_ARG) > 0 { 
       true  => &arg as *const io_uring::getevents_arg as *const c_void,
       false => mask as *const c_void,
     };
     let size = match (get_flags & IORING_ENTER_EXT_ARG) > 0 {
       true  => size_of::<io_uring::getevents_arg>(),
-      false => (_NSIG / 8) as usize,
+      false => arg.sigmask_sz as usize,
     };
 
     loop {
       let mut need_enter = false;
       let mut flags = 0;
-      let (cqe, available) = self.cqe_peek()?;
+      let (cqe, available) = match self.cqe_peek() {
+        Ok((cqe, available)) => (cqe, available),
+        Err(err) => return Err(if error == 0 { err } else { Error::from_raw_os_error(error) }),
+      };
 
-      if cqe.is_none() && min_complete > 0 && submit > 0 {
-        if looped || !self.has_flag(IORING_SETUP_IOPOLL) || !self.cq.needs_enter() {
-          return Err(Error::from_raw_os_error(EAGAIN));
+      if cqe.is_none() && wait_nr == 0 && submit == 0 {
+        let iopoll = self.has_flag(IORING_SETUP_IOPOLL);
+        let flush = self.cq.needs_flush();
+        let cq_enter = iopoll || flush;
+
+        if looped || !cq_enter {
+          if error == 0 {
+            return Err(Error::from_raw_os_error(EAGAIN));
+          }
+          
+          return Err(Error::from_raw_os_error(error));
         }
 
         need_enter = true;
       }
-      if min_complete > available || need_enter {
+      if wait_nr > available || need_enter {
         flags |= IORING_ENTER_GETEVENTS | get_flags;
         need_enter = true;
       }
-      if !self.has_flag(IORING_SETUP_SQPOLL) || self.sq.needs_enter(to_submit) {
+
+      let sqpoll = self.has_flag(IORING_SETUP_SQPOLL);
+      let wakeup = self.sq.needs_wakeup();
+      let sq_enter = ((submit != 0) && !sqpoll) || ((submit != 0) && wakeup);
+
+      flags |= if wakeup { IORING_ENTER_SQ_WAKEUP } else { 0 };
+
+      if sq_enter {
         need_enter = true;
       }
       if !need_enter {
         return Ok(cqe);
       }
       if looped && ms > 0 {
-        if cqe.is_none() {
+        if cqe.is_none() && error == 0 {
           return Err(Error::from_raw_os_error(ETIME));
         }
+
+        return Err(Error::from_raw_os_error(error));
+      }
+      if false {
+        flags |= IORING_ENTER_REGISTERED_RING;
       }
 
-      to_submit -= io_uring::enter2(self.enter_fd, to_submit, min_complete, flags, ptr, size)? as u32;
-      looped = true;
+      println!("SUBMIT: {}", submit);
+      println!("WAIT_NR: {}", wait_nr);
+      println!("FLAGS: {:#032b}", flags);
+
+      let ret = match io_uring::enter2(self.enter_fd, submit, wait_nr, flags, ptr, size) {
+        Ok(ret) => ret,
+        Err(err) => return Err(if error == 0 { Error::from_raw_os_error(error) } else { err }),
+      };
+      println!("HERE 0");
+
+      submit -= ret as u32;
 
       if cqe.is_some() {
         return Ok(cqe);
       }
+      println!("HERE 1");
+      if !looped {
+        looped = true;
+        error = ret;
+      }
+      println!("HERE 2");
     }
   }
 
@@ -112,8 +147,11 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       }
     }
 
-    return match self.cqe_get(0, 0, 0, std::ptr::null::<sigset_t>(), 0) {
-      Ok(cqe) => Ok(cqe.unwrap()),
+    return match self.cqe_get(0, 1, 0, std::ptr::null::<sigset_t>(), 0) {
+      Ok(cqe) => match cqe {
+        Some(cqe) => Ok(cqe),
+        None => Err(Error::last_os_error()),
+      },
       Err(err) => Err(err),
     };
   }

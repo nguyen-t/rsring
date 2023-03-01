@@ -34,11 +34,13 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let cq_size = p.cq_off.cqes as usize + p.cq_entries as usize * size_of::<io_uring::cqe<T>>();
     let size = core::cmp::max(sq_size, cq_size);
     let ring = memmap(fd, size, IORING_OFF_SQ_RING);
-    let mut sq = unsafe { SQueue::<T>::new(ring, &p, fd) };
+    let sq = unsafe { SQueue::<T>::new(ring, &p, fd) };
     let cq = unsafe { CQueue::<U>::new(ring, &p) };
 
     for i in 0..sq.ring_entries {
-      sq.set_array(i as usize, i as u32, Ordering::Relaxed);
+      unsafe {
+        (*sq.array.add(i as usize)).store(i as _, Ordering::Relaxed);
+      };
     }
 
     return Ok(Ring {
@@ -54,20 +56,30 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     });
   }
 
-  pub fn submit(&self, to_submit: u32, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
-    let sq_enter = self.sq.needs_enter(to_submit);
-    let cq_enter = self.cq.needs_enter();
-    let self_enter = getevents || wait_nr > 0 || self.has_flag(IORING_SETUP_IOPOLL) || !self.has_flag(IORING_SETUP_SQPOLL);
+  pub fn submit(&mut self, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
+    let to_submit = self.sqe_flush();
+    let submit = to_submit != 0;
+    let sqpoll = self.has_flag(IORING_SETUP_SQPOLL);
+    let iopoll = self.has_flag(IORING_SETUP_IOPOLL);
+    let wakeup = self.sq.needs_wakeup();
+    let flush = self.cq.needs_flush();
+    let sq_enter = (submit && !sqpoll) || (submit && wakeup);
+    let cq_enter = getevents || wait_nr > 0 || iopoll || flush;
 
-    if self_enter || sq_enter || cq_enter {
-      let flags = 0 // TODO: self.int_flags & INT_FLAG_REG_RING
-      | IORING_SQ_NEED_WAKEUP * (sq_enter as u32)
-      | IORING_ENTER_GETEVENTS * (cq_enter as u32);
-      
+    if sq_enter || cq_enter {
+      let register = false;
+      let flags = if register { IORING_ENTER_REGISTERED_RING } else { 0 }
+        | if sq_enter { IORING_SQ_NEED_WAKEUP } else { 0 }
+        | if cq_enter { IORING_ENTER_GETEVENTS } else { 0 };
+
       return io_uring::enter(self.enter_fd, to_submit, wait_nr, flags, ptr::null_mut::<sigset_t>());
     }
 
     return Ok(to_submit as i32);
+  }
+
+  pub fn next(&mut self) {
+    self.cqe_advance(1);
   }
 
   pub(crate) fn init_flags() -> u32 {
@@ -82,9 +94,9 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       _  => 0,
     };
 
-    return IORING_SETUP_SQPOLL
-    // | IORING_SETUP_R_DISABLED
-    | IORING_SETUP_SUBMIT_ALL
+    // return IORING_SETUP_SQPOLL
+    // | IORING_SETUP_SUBMIT_ALL
+    return 0
     | sqe_setup 
     | cqe_setup;
   }

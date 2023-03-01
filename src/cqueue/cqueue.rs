@@ -29,14 +29,14 @@ impl<T: Sized> CQueue<T> {
   #[inline]
   pub fn overflowed(&self) -> bool {
     unsafe {
-      return (self.kflags.read().load(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW)) > 0;
+      return ((*self.kflags).load(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW)) > 0;
     };
   }
 
   #[inline]
   pub(crate) fn needs_flush(&self) -> bool {
     unsafe {
-      return (self.kflags.read().load(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN)) > 0;
+      return ((*self.kflags).load(Ordering::Relaxed) & (IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN)) > 0;
     };
   }
 

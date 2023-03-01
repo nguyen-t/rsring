@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 use std::mem::size_of;
-use std::sync::atomic::{AtomicU32, Ordering, fence};
+use std::sync::atomic::{AtomicU32, Ordering};
 use libc::munmap;
 use crate::io_uring::{self, *};
 use crate::util::memmap;
@@ -41,10 +41,8 @@ impl<T: Sized> SQueue<T> {
 
   #[inline]
   pub(crate) fn needs_wakeup(&self) -> bool {
-    fence(Ordering::SeqCst);
-    
     unsafe { 
-      return (self.kflags.read().load(Ordering::Relaxed) & IORING_SQ_NEED_WAKEUP) > 0;
+      return ((*self.kflags).load(Ordering::Acquire) & IORING_SQ_NEED_WAKEUP) > 0;
     };
   }
 
