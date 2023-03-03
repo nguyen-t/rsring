@@ -56,7 +56,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   pub fn submit(&mut self, wait_nr: u32, getevents: bool) -> Result<i32, Error> {
-    let to_submit = self.sqe_flush();
+    let to_submit = self.sq.flush();
     let submit = to_submit != 0;
     let sqpoll = self.has_flag(IORING_SETUP_SQPOLL);
     let iopoll = self.has_flag(IORING_SETUP_IOPOLL);
@@ -78,7 +78,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   pub fn next(&mut self) {
-    self.cqe_advance(1);
+    self.cq.advance(1);
   }
 
   pub(crate) fn init_flags() -> u32 {
@@ -101,10 +101,6 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
   pub(crate) fn has_flag(&self, flag: u32) -> bool {
     return (self.flags & flag) > 0;
-  }
-
-  pub(crate) fn has_feature(&self, features: u32) -> bool {
-    return (self.flags & features) > 0;
   }
 }
 
