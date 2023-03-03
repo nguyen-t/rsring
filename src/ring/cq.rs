@@ -1,72 +1,36 @@
 use std::io::{Error};
 use std::mem::size_of;
-use std::sync::atomic::Ordering;
 use std::ffi::c_void;
 
 use libc::{sigset_t, EAGAIN, ETIME};
-use crate::ring::{Ring, RING_TIMEOUT};
+use crate::ring::{Ring};
 use crate::io_uring::{self, *};
 
+fn submitter(fd: i32, to_submit: u32, min_complete: u32, flags: u32, ms: u64, sig: *const sigset_t) -> Result<i32, Error> {
+  let ts = __kernel_timespec::from_ms(ms as i64);
+  let arg = io_uring::getevents_arg::new(sig, &ts);
+  let ptr = match (flags & IORING_ENTER_EXT_ARG) > 0 { 
+    true  => &arg as *const io_uring::getevents_arg as *const c_void,
+    false => sig as *const c_void,
+  };
+  let size = match (flags & IORING_ENTER_EXT_ARG) > 0 {
+    true  => size_of::<io_uring::getevents_arg>(),
+    false => arg.sigmask_sz as usize,
+  };
+
+  return io_uring::enter2(fd, to_submit, min_complete, flags, ptr, size);
+}
+
 impl<T: Sized, U: Sized> Ring<T, U> {
-  pub(crate) fn cqe_advance(&mut self, nr: u32) {
-    unsafe {
-      (*self.cq.khead).store((*self.cq.khead).load(Ordering::Acquire) + nr, Ordering::Release);
-    };
-  }
-
-  pub(crate) fn cqe_peek(&mut self) -> Result<(Option<*mut io_uring::cqe<U>>, u32), Error> {
-    let mask = self.cq.ring_mask;
-    let shift = self.has_flag(IORING_SETUP_CQE32) as u32;
-
-    loop {
-      let tail = unsafe { (*self.cq.ktail).load(Ordering::Acquire) };
-      let head = unsafe { (*self.cq.khead).load(Ordering::Acquire) };
-      let available = tail - head;
-
-      if available == 0 {
-        return Ok((None, 0));
-      }
-
-      let index = (head & mask) << shift;
-      let cqe = unsafe { self.cq.cqes.add(index as usize) };
-      let ext_arg = self.has_feature(IORING_FEAT_EXT_ARG);
-      let timeout = unsafe { (*cqe).user_data == RING_TIMEOUT };
-
-      if !ext_arg && timeout {
-        let res = unsafe { (*cqe).res };
-       
-        self.cqe_advance(1);
-
-        if res >= 0 {
-          continue;
-        }
-        
-        return Err(Error::from_raw_os_error(res));
-      }
-
-      return Ok((Some(cqe), available));
-    };
-  }
-
-  pub(crate) fn cqe_get(&mut self, to_submit: u32, wait_nr: u32, get_flags: u32, mask: *const sigset_t, ms: u64) -> Result<Option<*mut io_uring::cqe<U>>, Error> {
+  pub(crate) fn cqe_get(&mut self, to_submit: u32, wait_nr: u32, get_flags: u32, sig: *const sigset_t, ms: u64) -> Result<Option<*mut io_uring::cqe<U>>, Error> {
     let mut looped = false;
     let mut error = 0;
     let mut submit = to_submit;
-    let ts = __kernel_timespec::from_ms(ms as i64);
-    let arg = io_uring::getevents_arg::new(mask, &ts);
-    let ptr = match (get_flags & IORING_ENTER_EXT_ARG) > 0 { 
-      true  => &arg as *const io_uring::getevents_arg as *const c_void,
-      false => mask as *const c_void,
-    };
-    let size = match (get_flags & IORING_ENTER_EXT_ARG) > 0 {
-      true  => size_of::<io_uring::getevents_arg>(),
-      false => arg.sigmask_sz as usize,
-    };
 
     loop {
       let mut need_enter = false;
       let mut flags = 0;
-      let (cqe, available) = match self.cqe_peek() {
+      let (cqe, available) = match self.cq.peek() {
         Ok((cqe, available)) => (cqe, available),
         Err(err) => return Err(if error == 0 { err } else { Error::from_raw_os_error(error) }),
       };
@@ -114,7 +78,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
         flags |= IORING_ENTER_REGISTERED_RING;
       }
 
-      let ret = match io_uring::enter2(self.enter_fd, submit, wait_nr, flags, ptr, size) {
+      let ret = match submitter(self.enter_fd, submit, wait_nr, flags, ms, sig) {
         Ok(ret) => ret,
         Err(err) => return Err(if error == 0 { Error::from_raw_os_error(error) } else { err }),
       };
@@ -132,7 +96,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   pub fn wait_cqe(&mut self) -> Result<*mut io_uring::cqe<U>, Error> {
-    let result = self.cqe_peek();
+    let result = self.cq.peek();
 
     if result.is_ok() {
       if let Some(cqe) = result.unwrap().0 {

@@ -45,4 +45,27 @@ mod ring_tests {
 
     return Ok(());
   }
+
+  #[test]
+  fn nop_test() {
+    let mut ring = match Ring::<[u64; 2], [u8; 0]>::new(4096) {
+      Ok(ring) => ring,
+      Err(err) => panic!("{}", err),
+    };
+    let mut iterations = 0;
+
+    while iterations < 1000000 {
+      ring.nop();
+      match ring.submit(0, false) {
+        Ok(_) => (),
+        Err(err) => panic!("{}", err),
+      };
+      match ring.wait_cqe() {
+        Ok(_) => iterations += 1,
+        Err(err) => panic!("{}", err),
+      };
+
+      ring.next();
+    }
+  }
 }
