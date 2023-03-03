@@ -81,8 +81,8 @@ impl<T: Sized> sqe<T> {
     return self;
   }
 
-  /* Enables zeroshot on compatible ops */
-  pub fn zeroshot(&mut self, ioprio: u16) -> &Self {
+  /* Enables zerocopy on compatible ops */
+  pub fn zerocopy(&mut self, ioprio: u16) -> &Self {
     self.ioprio |= match self.opcode as u32 {
       IORING_OP_SEND    => ioprio,
       IORING_OP_SENDMSG => ioprio,
