@@ -26,7 +26,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
   #[inline]
 	pub fn fdatasync(&mut self, fd: c_int) -> Option<*mut io_uring::sqe<T>> {
-    return self.sq.prep(IORING_OP_WRITEV, fd, NULL, 0, 0, IORING_FSYNC_DATASYNC);
+    return self.sq.prep(IORING_FSYNC_DATASYNC, fd, NULL, 0, 0, 0);
   }
 
   #[inline]

@@ -1,9 +1,6 @@
 mod ring;
-mod sq;
 mod cq;
 mod syscalls;
-
-pub(crate) const RING_TIMEOUT: u64 = !0;
 
 pub use {
   ring::Ring,
@@ -48,15 +45,16 @@ mod ring_tests {
 
   #[test]
   fn nop_test() {
-    let mut ring = match Ring::<[u64; 2], [u8; 0]>::new(4096) {
+    let mut ring = match Ring::<[u64; 2], [u8; 0]>::new(32) {
       Ok(ring) => ring,
       Err(err) => panic!("{}", err),
     };
     let mut iterations = 0;
 
-    while iterations < 1000000 {
+    while iterations < 1000 {
       ring.nop();
-      match ring.submit(0, false) {
+
+      match ring.submit(0) {
         Ok(_) => (),
         Err(err) => panic!("{}", err),
       };
