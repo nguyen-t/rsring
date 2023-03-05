@@ -48,7 +48,7 @@ impl<T> Map<T> {
 impl<T> Drop for Map<T> {
   fn drop(&mut self) {
     unsafe {
-      munmap(self.data as *mut c_void, self.size);
+      munmap(self.data as *mut c_void, self.len());
     }
   }
 }
