@@ -32,12 +32,12 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return self.ready(to_submit, 0, ptr::null_mut::<sigset_t>(), 0);
   }
 
-  pub fn submit_wait(&mut self, min_complete: u32, timeout: u32) -> Result<&mut io_uring::cqe<U>, Error> {
+  pub fn submit_wait(&mut self) -> Result<&mut io_uring::cqe<U>, Error> {
     let to_submit = self.sq.remaining();
 
     self.sq.update();
 
-    if let Err(err) = self.ready(to_submit, min_complete, ptr::null::<sigset_t>(), timeout) {
+    if let Err(err) = self.ready(to_submit, 1, ptr::null::<sigset_t>(), 0) {
       return Err(err);
     };
 
@@ -47,7 +47,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     };
   }
 
-  pub(crate) fn ready(&mut self, to_submit: u32, min_complete: u32, sig: *const sigset_t, timeout: u32) -> Result<i32, Error> {
+  pub fn ready(&mut self, to_submit: u32, min_complete: u32, sig: *const sigset_t, timeout: u32) -> Result<i32, Error> {
     let sqpoll = (self.flags & IORING_SETUP_SQPOLL) > 0;
     let iopoll = (self.flags & IORING_SETUP_IOPOLL) > 0;
     let wakeup = self.sq.needs_wakeup();
