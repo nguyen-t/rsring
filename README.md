@@ -19,7 +19,7 @@ fn main() {
     .set_data_u64(0);
 
   loop {
-    let cqe = ring.submit_wait(1, 0).unwrap();
+    let cqe = ring.submit_wait().unwrap();
     let fd = cqe.res;
 
     if cqe.get_data_u64() == 0 {
