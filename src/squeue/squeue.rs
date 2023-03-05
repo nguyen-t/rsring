@@ -35,6 +35,7 @@ impl<T: Sized> SQueue<T> {
     };
   }
 
+  #[inline]
   pub(crate) fn remaining(&self) -> u32 {
     let tail = self.sqe_tail;
     let head = unsafe { (*self.khead).load(Ordering::Acquire) };
@@ -47,6 +48,14 @@ impl<T: Sized> SQueue<T> {
     unsafe { 
       return ((*self.kflags).load(Ordering::Acquire) & IORING_SQ_NEED_WAKEUP) > 0;
     };
+  }
+
+  pub(crate) fn update(&mut self) {
+    if self.sqe_head != self.sqe_tail {      
+      self.sqe_head = self.sqe_tail;
+
+      unsafe { (*self.ktail).store(self.sqe_tail, Ordering::Release) };
+    }
   }
 
   pub(crate) fn next(&mut self) -> Option<*mut io_uring::sqe<T>> {
@@ -62,19 +71,6 @@ impl<T: Sized> SQueue<T> {
     self.sqe_tail = next;
 
     return Some(self.sqes.add(index as usize));
-  }
-
-  pub(crate) fn flush(&mut self) -> u32 {
-    let tail = self.sqe_tail;
-    let head = unsafe { (*self.khead).load(Ordering::Acquire) };
-
-    if self.sqe_head != tail {      
-      self.sqe_head = tail;
-
-      unsafe { (*self.ktail).store(tail, Ordering::Release) };
-    }
-
-    return tail - head;
   }
 
   pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {

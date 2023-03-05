@@ -25,13 +25,17 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   pub fn submit(&mut self) -> Result<i32, Error> {
-    let to_submit = self.sq.flush();
+    let to_submit = self.sq.remaining();
+
+    self.sq.update();
 
     return self.ready(to_submit, 0, ptr::null_mut::<sigset_t>(), 0);
   }
 
   pub fn submit_wait(&mut self, min_complete: u32, timeout: u32) -> Result<*mut io_uring::cqe<U>, Error> {
-    let to_submit = self.sq.flush();
+    let to_submit = self.sq.remaining();
+
+    self.sq.update();
 
     if let Err(err) = self.ready(to_submit, min_complete, ptr::null::<sigset_t>(), timeout) {
       return Err(err);

@@ -29,6 +29,7 @@ impl<T: Sized> CQueue<T> {
     };
   }
 
+  #[inline]
   pub(crate) fn available(&self) -> u32 {
     let tail = unsafe { (*self.ktail).load(Ordering::Acquire) };
     let head = unsafe { (*self.khead).load(Ordering::Acquire) };
