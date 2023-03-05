@@ -48,28 +48,37 @@ impl __kernel_timespec {
 
 impl<T: Sized> sqe<T> {
   /* Sets user data field for pointer types */
-  pub fn set_data_ptr(&mut self, data: *const c_void) -> &Self {
+  pub fn set_data_ptr(&mut self, data: *const c_void) -> &mut Self {
     self.user_data = data as u64;
 
     return self;
   }
 
   /* Sets user data field for u64 */
-  pub fn set_data_u64(&mut self, data: u64) -> &Self {
+  pub fn set_data_u64(&mut self, data: u64) -> &mut Self {
     self.user_data = data;
 
     return self;
   }
 
+  pub fn link(&mut self, hard: bool) -> &mut Self {
+    self.flags |= match hard {
+      false => IOSQE_IO_LINK as u8,
+      true  => IOSQE_IO_HARDLINK as u8,
+    };
+
+    return self
+  }
+
   /* TODO: Prevent shooting yourself in the foot */
-  pub fn direct(&mut self, file_index: u32) -> &Self {
+  pub fn direct(&mut self, file_index: u32) -> &mut Self {
     self.file_select = file_index + 1;
 
     return self;
   }
 
   /* Enables multishot on compatible ops */
-  pub fn multishot(&mut self) -> &Self {
+  pub fn multishot(&mut self) -> &mut Self {
     self.ioprio |= match self.opcode as u32 {
       IORING_OP_RECVMSG  => IORING_RECV_MULTISHOT,
       IORING_OP_POLL_ADD => IORING_POLL_ADD_MULTI,
@@ -82,7 +91,7 @@ impl<T: Sized> sqe<T> {
   }
 
   /* Enables zerocopy on compatible ops */
-  pub fn zerocopy(&mut self, ioprio: u16) -> &Self {
+  pub fn zerocopy(&mut self, ioprio: u16) -> &mut Self {
     self.ioprio |= match self.opcode as u32 {
       IORING_OP_SEND    => ioprio,
       IORING_OP_SENDMSG => ioprio,
