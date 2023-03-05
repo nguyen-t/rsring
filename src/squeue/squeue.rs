@@ -1,9 +1,9 @@
 use core::ffi::c_void;
 use std::mem::size_of;
 use std::sync::atomic::{AtomicU32, Ordering};
-use libc::{munmap, memset};
+use libc::memset;
+use crate::util::Map;
 use crate::io_uring::{self, *};
-use crate::util::memmap;
 
 #[derive(Debug)]
 pub struct SQueue<T: Sized> {
@@ -12,30 +12,26 @@ pub struct SQueue<T: Sized> {
   pub kflags:       *mut AtomicU32,
   pub kdropped:     *mut AtomicU32,
   pub array:        *mut u32,
-  pub sqes:         *mut io_uring::sqe<T>,
+  pub sqes:         Map<sqe<T>>,
   pub sqe_head:     u32,
   pub sqe_tail:     u32,
   pub ring_mask:    u32,
   pub ring_entries: u32,
-  pub size:         usize,
 }
 
 impl<T: Sized> SQueue<T> {
-  pub unsafe fn new(ring: *mut c_void, p: &io_uring::params, fd: i32) -> SQueue<T> {
-    let size = size_of::<io_uring::sqe<T>>() * p.sq_entries as usize;
-  
+  pub unsafe fn new(ring: *mut c_void, p: &io_uring::params, sqes: Map<sqe<T>>) -> SQueue<T> {
     return SQueue {
       khead: ring.add(p.sq_off.head as usize)            as *mut AtomicU32,
       ktail: ring.add(p.sq_off.tail as usize)            as *mut AtomicU32,
       kflags: ring.add(p.sq_off.tail as usize)           as *mut AtomicU32,
       kdropped: ring.add(p.sq_off.dropped as usize)      as *mut AtomicU32,
       array: ring.add(p.sq_off.array as usize).cast::<u32>(),
-      sqes: memmap(fd, size, io_uring::IORING_OFF_SQES) as *mut io_uring::sqe<T>,
+      sqes: sqes,
       sqe_head: 0,
       sqe_tail : 0,
       ring_mask: ring.add(p.sq_off.ring_mask as usize).cast::<u32>().read(),
       ring_entries: ring.add(p.sq_off.ring_entries as usize).cast::<u32>().read(),
-      size: size,
     };
   }
 
@@ -58,11 +54,12 @@ impl<T: Sized> SQueue<T> {
 
     self.sqe_tail = next;
 
-    return Some(unsafe { self.sqes.add(index as usize) });
+    return Some(self.sqes.add(index as usize));
   }
 
   pub(crate) fn flush(&mut self) -> u32 {
     let tail = self.sqe_tail;
+    let head = unsafe { (*self.khead).load(Ordering::Acquire) };
 
     if self.sqe_head != tail {      
       self.sqe_head = tail;
@@ -70,7 +67,7 @@ impl<T: Sized> SQueue<T> {
       unsafe { (*self.ktail).store(tail, Ordering::Release) };
     }
 
-    return tail - unsafe { (*self.khead).load(Ordering::Acquire) };
+    return tail - head;
   }
 
   pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
@@ -89,12 +86,4 @@ impl<T: Sized> SQueue<T> {
     return Some(sqe);
   }
 
-}
-
-impl<T: Sized> Drop for SQueue<T> {
-  fn drop(&mut self) {
-    unsafe { 
-      munmap(self.sqes as *mut c_void,  self.size) 
-    };
-  }
 }

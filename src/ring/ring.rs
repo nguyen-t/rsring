@@ -2,16 +2,16 @@ use std::io::Error;
 use std::ptr;
 use std::mem::size_of;
 use std::ffi::c_void;
-use libc::{sigset_t, munmap, close, EINVAL};
+use libc::{sigset_t, close, EINVAL};
 
 use crate::io_uring::{self, *};
-use crate::util::memmap;
+use crate::util::Map;
 use crate::squeue::SQueue;
 use crate::cqueue::CQueue;
 
 #[derive(Debug)]
 pub struct Ring<T: Sized, U: Sized> {
-  pub ring:       *mut c_void,
+  pub ring:       Map<c_void>,
   pub size:       usize,
   pub ring_fd:    i32,
   pub enter_fd:   i32,
@@ -32,9 +32,10 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let sq_size = p.sq_off.array as usize + p.sq_entries as usize * size_of::<u32>();
     let cq_size = p.cq_off.cqes as usize + p.cq_entries as usize * size_of::<io_uring::cqe<T>>();
     let size = core::cmp::max(sq_size, cq_size);
-    let ring = memmap(fd, size, IORING_OFF_SQ_RING);
-    let sq = unsafe { SQueue::<T>::new(ring, &p, fd) };
-    let cq = unsafe { CQueue::<U>::new(ring, &p) };
+    let ring = Map::new(fd, size, IORING_OFF_SQ_RING)?;
+    let sqes = Map::new(fd, size, io_uring::IORING_OFF_SQES)?;
+    let sq = unsafe { SQueue::<T>::new(ring.raw(), &p, sqes) };
+    let cq = unsafe { CQueue::<U>::new(ring.raw(), &p) };
 
     for i in 0..sq.ring_entries {
       unsafe {
@@ -109,7 +110,6 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 impl<T: Sized, U: Sized> Drop for Ring<T, U> {
   fn drop(&mut self) {
     unsafe { 
-      munmap(self.ring, self.size);
       close(self.ring_fd);
       close(self.enter_fd);
     };
