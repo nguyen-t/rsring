@@ -12,10 +12,10 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     self.cq.advance(1);
   }
 
-  pub fn wait(&mut self) -> Result<*mut io_uring::cqe<U>, Error> {
+  pub fn wait(&mut self) -> Result<&mut io_uring::cqe<U>, Error> {
     loop {
       if let Some(cqe) = self.cq.next() {
-        return Ok(cqe);
+        return Ok(unsafe { cqe.as_mut().unwrap() });
       };
       match self.ready(0, 1, ptr::null::<sigset_t>(), 0) {
         Ok(_) => (),
@@ -32,7 +32,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return self.ready(to_submit, 0, ptr::null_mut::<sigset_t>(), 0);
   }
 
-  pub fn submit_wait(&mut self, min_complete: u32, timeout: u32) -> Result<*mut io_uring::cqe<U>, Error> {
+  pub fn submit_wait(&mut self, min_complete: u32, timeout: u32) -> Result<&mut io_uring::cqe<U>, Error> {
     let to_submit = self.sq.remaining();
 
     self.sq.update();
@@ -42,7 +42,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     };
 
     return match self.cq.next() {
-      Some(cqe) => Ok(cqe),
+      Some(cqe) => Ok(unsafe { cqe.as_mut().unwrap() }),
       None => Err(Error::last_os_error()),
     };
   }

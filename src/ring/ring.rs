@@ -10,15 +10,13 @@ use crate::cqueue::CQueue;
 
 #[derive(Debug)]
 pub struct Ring<T: Sized, U: Sized> {
-  pub ring:       Map<c_void>,
-  pub size:       usize,
-  pub ring_fd:    i32,
-  pub enter_fd:   i32,
-  pub flags:      u32,
-  pub features:   u32,
-  pub registered: bool,
-  pub sq:         SQueue<T>,
-  pub cq:         CQueue<U>,
+  pub(crate) ring:       Map<c_void>,
+  pub(crate) ring_fd:    i32,
+  pub(crate) enter_fd:   i32,
+  pub(crate) flags:      u32,
+  pub(crate) features:   u32,
+  pub(crate) sq:         SQueue<T>,
+  pub(crate) cq:         CQueue<U>,
 }
 
 impl<T: Sized, U: Sized> Ring<T, U> {
@@ -44,12 +42,10 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     return Ok(Ring {
       ring: ring,
-      size: size,
       ring_fd: fd,
       enter_fd: fd,
       flags: p.flags,
       features: p.features,
-      registered: false,
       sq: sq,
       cq: cq,
     });

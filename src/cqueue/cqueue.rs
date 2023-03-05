@@ -5,14 +5,13 @@ use crate::io_uring::{self, *};
 
 #[derive(Debug, Clone)]
 pub struct CQueue<T: Sized> {
-  pub khead:        *mut AtomicU32,
-  pub ktail:        *mut AtomicU32,
-  pub kflags:       *mut AtomicU32,
-  pub koverflow:    *mut AtomicU32,
-  pub cqes:         *mut io_uring::cqe<T>,
-  pub ring_mask:    u32,
-  pub ring_entries: u32,
-  pub ext_arg:      bool,
+  pub(crate) khead:        *mut AtomicU32,
+  pub(crate) ktail:        *mut AtomicU32,
+  pub(crate) kflags:       *mut AtomicU32,
+  pub(crate) koverflow:    *mut AtomicU32,
+  pub(crate) cqes:         *mut io_uring::cqe<T>,
+  pub(crate) ring_mask:    u32,
+  pub(crate) ring_entries: u32,
 }
 
 impl<T: Sized> CQueue<T> {
@@ -25,7 +24,6 @@ impl<T: Sized> CQueue<T> {
       cqes: ring.add(p.cq_off.cqes as usize)          as *mut io_uring::cqe<T>,
       ring_mask: ring.add(p.cq_off.ring_mask as usize).cast::<u32>().read(),
       ring_entries: ring.add(p.cq_off.ring_entries as usize).cast::<u32>().read(),
-      ext_arg: (p.features & IORING_FEAT_EXT_ARG) > 0,
     };
   }
 

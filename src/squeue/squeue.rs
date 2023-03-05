@@ -7,16 +7,16 @@ use crate::io_uring::{self, *};
 
 #[derive(Debug)]
 pub struct SQueue<T: Sized> {
-  pub khead:        *mut AtomicU32,
-  pub ktail:        *mut AtomicU32,
-  pub kflags:       *mut AtomicU32,
-  pub kdropped:     *mut AtomicU32,
-  pub array:        *mut u32,
-  pub sqes:         Map<sqe<T>>,
-  pub sqe_head:     u32,
-  pub sqe_tail:     u32,
-  pub ring_mask:    u32,
-  pub ring_entries: u32,
+  pub(crate) khead:        *mut AtomicU32,
+  pub(crate) ktail:        *mut AtomicU32,
+  pub(crate) kflags:       *mut AtomicU32,
+  pub(crate) kdropped:     *mut AtomicU32,
+  pub(crate) array:        *mut u32,
+  pub(crate) sqes:         Map<sqe<T>>,
+  pub(crate) sqe_head:     u32,
+  pub(crate) sqe_tail:     u32,
+  pub(crate) ring_mask:    u32,
+  pub(crate) ring_entries: u32,
 }
 
 impl<T: Sized> SQueue<T> {
@@ -73,7 +73,7 @@ impl<T: Sized> SQueue<T> {
     return Some(self.sqes.add(index as usize));
   }
 
-  pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<*mut io_uring::sqe<T>> {
+  pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<&mut io_uring::sqe<T>> {
     let sqe = self.next()?;
 
     unsafe {
@@ -86,7 +86,7 @@ impl<T: Sized> SQueue<T> {
       (*sqe).op_flags    = flags;
     };
 
-    return Some(sqe);
+    return unsafe { sqe.as_mut() };
   }
 
 }
