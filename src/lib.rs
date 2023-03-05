@@ -1,4 +1,5 @@
 #![feature(c_size_t)]
+#![allow(dead_code)]
 mod io_uring;
 mod util;
 mod squeue;
