@@ -1,5 +1,7 @@
 use libc::{timespec};
 
+/* TODO: Rewrite once anonymous unions and structs are in Rust-Nightly build */
+
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct __kernel_timespec {
