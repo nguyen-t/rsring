@@ -1,5 +1,5 @@
 mod ring;
-mod cq;
+mod utility;
 mod syscalls;
 
 pub use {
@@ -58,7 +58,7 @@ mod ring_tests {
         Ok(_) => (),
         Err(err) => panic!("{}", err),
       };
-      match ring.wait_cqe() {
+      match ring.wait() {
         Ok(_) => iterations += 1,
         Err(err) => panic!("{}", err),
       };

@@ -35,6 +35,13 @@ impl<T: Sized> SQueue<T> {
     };
   }
 
+  pub(crate) fn remaining(&self) -> u32 {
+    let tail = self.sqe_tail;
+    let head = unsafe { (*self.khead).load(Ordering::Acquire) };
+
+    return tail - head;
+  }
+
   #[inline]
   pub(crate) fn needs_wakeup(&self) -> bool {
     unsafe { 

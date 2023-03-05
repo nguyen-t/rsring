@@ -2,7 +2,7 @@ use std::io::Error;
 use std::ptr;
 use std::mem::size_of;
 use std::ffi::c_void;
-use libc::{sigset_t, close, EINVAL};
+use libc::{close, EINVAL};
 
 use crate::io_uring::{self, *};
 use crate::util::Map;
@@ -54,36 +54,6 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       sq: sq,
       cq: cq,
     });
-  }
-
-  pub fn submit_wait(&mut self, min_complete: u32) -> Result<i32, Error> {
-    let to_submit = self.sq.flush();
-    let submit = to_submit != 0;
-    let sqpoll = (self.flags & IORING_SETUP_SQPOLL) > 0;
-    let iopoll = (self.flags & IORING_SETUP_IOPOLL) > 0;
-    let wakeup = self.sq.needs_wakeup();
-    let flush = self.cq.needs_flush();
-    let sq_enter = (submit && !sqpoll) || (submit && wakeup);
-    let cq_enter = iopoll || flush;
-
-    if min_complete > 0 || sq_enter || cq_enter {
-      let register = false;
-      let flags = if register { IORING_ENTER_REGISTERED_RING } else { 0 }
-        | if sq_enter { IORING_SQ_NEED_WAKEUP } else { 0 }
-        | if cq_enter { IORING_ENTER_GETEVENTS } else { 0 };
-
-      return io_uring::enter(self.enter_fd, to_submit, min_complete, flags, ptr::null_mut::<sigset_t>());
-    }
-
-    return Ok(to_submit as i32);
-  }
-
-  pub fn submit(&mut self) -> Result<i32, Error> {
-    return self.submit_wait(0);
-  }
-
-  pub fn next(&mut self) {
-    self.cq.advance(1);
   }
 
   pub(crate) fn init_flags() -> Result<u32, Error> {

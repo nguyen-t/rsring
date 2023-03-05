@@ -1,4 +1,3 @@
-use std::io::Error;
 use std::mem::size_of;
 use core::ffi::c_void;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -30,12 +29,11 @@ impl<T: Sized> CQueue<T> {
     };
   }
 
-  #[inline]
-  pub fn overflowed(&self) -> bool {
-    let flags = IORING_SQ_CQ_OVERFLOW;
-    unsafe {
-      return ((*self.kflags).load(Ordering::Acquire) & flags) > 0;
-    };
+  pub(crate) fn available(&self) -> u32 {
+    let tail = unsafe { (*self.ktail).load(Ordering::Acquire) };
+    let head = unsafe { (*self.khead).load(Ordering::Acquire) };
+
+    return tail - head;
   }
 
   #[inline]
@@ -54,37 +52,16 @@ impl<T: Sized> CQueue<T> {
     };
   }
 
-  pub(crate) fn peek(&mut self) -> Result<(Option<*mut io_uring::cqe<T>>, u32), Error> {
-    let mask = self.ring_mask;
+  pub(crate) fn next(&mut self) -> Option<*mut io_uring::cqe<T>> {
     let shift = if size_of::<cqe<T>>() == 32 { 1 } else { 0 };
+    let tail = unsafe { (*self.ktail).load(Ordering::Acquire) };
+    let head = unsafe { (*self.khead).load(Ordering::Acquire) };
+    let index = (head & self.ring_mask) << shift;
+    
+    if tail - head == 0 {
+      return None;
+    }
 
-    loop {
-      let tail = unsafe { (*self.ktail).load(Ordering::Acquire) };
-      let head = unsafe { (*self.khead).load(Ordering::Acquire) };
-      let available = tail - head;
-
-      if available == 0 {
-        return Ok((None, 0));
-      }
-
-      let index = (head & mask) << shift;
-      let cqe = unsafe { self.cqes.add(index as usize) };
-      let timeout = unsafe { (*cqe).user_data == !0 };
-
-      if !self.ext_arg && timeout {
-        let res = unsafe { (*cqe).res };
-       
-        self.advance(1);
-
-        if res >= 0 {
-          continue;
-        }
-        
-        return Err(Error::from_raw_os_error(res));
-      }
-
-      return Ok((Some(cqe), available));
-    };
+    return Some(unsafe { self.cqes.add(index as usize) });
   }
-
 }
