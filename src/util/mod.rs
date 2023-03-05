@@ -1,5 +1,5 @@
-mod memmap;
+mod map;
 
 pub(crate) use {
-  memmap::memmap,
+  map::Map,
 };
