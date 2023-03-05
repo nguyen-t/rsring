@@ -6,4 +6,4 @@ mod cqueue;
 mod ring;
 
 pub type RSRing  = ring::Ring<[u64; 2], [u8; 0]>;
-pub type RSRingL = ring::Ring<[u8; 80], [u8; 16]>;
+// pub type RSRing = ring::Ring<[u8; 80], [u8; 16]>;
