@@ -54,7 +54,7 @@ mod ring_tests {
     while iterations < 1000 {
       ring.nop();
 
-      match ring.submit(0) {
+      match ring.submit() {
         Ok(_) => (),
         Err(err) => panic!("{}", err),
       };

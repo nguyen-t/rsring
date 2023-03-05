@@ -56,7 +56,7 @@ impl<T: Sized> CQueue<T> {
 
   pub(crate) fn peek(&mut self) -> Result<(Option<*mut io_uring::cqe<T>>, u32), Error> {
     let mask = self.ring_mask;
-    let shift = if size_of::<CQueue<T>>() == 32 { 1 } else { 0 };
+    let shift = if size_of::<cqe<T>>() == 32 { 1 } else { 0 };
 
     loop {
       let tail = unsafe { (*self.ktail).load(Ordering::Acquire) };

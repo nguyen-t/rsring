@@ -6,6 +6,8 @@ use libc::{sigset_t, EAGAIN, ETIME};
 use crate::ring::{Ring};
 use crate::io_uring::{self, *};
 
+/* TODO: Rewrite */
+
 fn submitter(fd: i32, to_submit: u32, min_complete: u32, flags: u32, ms: u64, sig: *const sigset_t) -> Result<i32, Error> {
   let ts = __kernel_timespec::from_ms(ms as i64);
   let arg = io_uring::getevents_arg::new(sig, &ts);
@@ -36,7 +38,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       };
 
       if cqe.is_none() && wait_nr == 0 && submit == 0 {
-        let iopoll = self.has_flag(IORING_SETUP_IOPOLL);
+        let iopoll = (self.flags & IORING_SETUP_IOPOLL) > 0;
         let flush = self.cq.needs_flush();
         let cq_enter = iopoll || flush;
 
@@ -55,7 +57,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
         need_enter = true;
       }
 
-      let sqpoll = self.has_flag(IORING_SETUP_SQPOLL);
+      let sqpoll = (self.flags & IORING_SETUP_SQPOLL) > 0;
       let wakeup = self.sq.needs_wakeup();
       let sq_enter = ((submit != 0) && !sqpoll) || ((submit != 0) && wakeup);
 

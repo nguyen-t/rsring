@@ -47,7 +47,7 @@ impl<T: Sized> SQueue<T> {
   }
 
   pub(crate) fn next(&mut self) -> Option<*mut io_uring::sqe<T>> {
-    let shift = if size_of::<SQueue<T>>() == 128 { 1 } else { 0 };
+    let shift = if size_of::<sqe<T>>() == 128 { 1 } else { 0 };
     let index = (self.sqe_tail & self.ring_mask) << shift;
     let next = self.sqe_tail + 1;
     let head = unsafe { (*self.khead).load(Ordering::Acquire) };

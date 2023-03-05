@@ -2,7 +2,7 @@ use std::io::Error;
 use std::ptr;
 use std::mem::size_of;
 use std::ffi::c_void;
-use libc::{sigset_t, munmap, close};
+use libc::{sigset_t, munmap, close, EINVAL};
 
 use crate::io_uring::{self, *};
 use crate::util::memmap;
@@ -24,7 +24,7 @@ pub struct Ring<T: Sized, U: Sized> {
 
 impl<T: Sized, U: Sized> Ring<T, U> {
   pub fn new(depth: u32) -> Result<Ring<T, U>, Error> {
-    let mut p = io_uring::params::new(Ring::<T, U>::init_flags());
+    let mut p = io_uring::params::new(Ring::<T, U>::init_flags()?);
     let fd = match io_uring::setup(depth, ptr::addr_of_mut!(p)) {
       Ok(fd) => fd,
       Err(e) => return Err(e)
@@ -55,23 +55,23 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     });
   }
 
-  pub fn submit(&mut self, wait_nr: u32) -> Result<i32, Error> {
+  pub fn submit(&mut self) -> Result<i32, Error> {
     let to_submit = self.sq.flush();
     let submit = to_submit != 0;
-    let sqpoll = self.has_flag(IORING_SETUP_SQPOLL);
-    let iopoll = self.has_flag(IORING_SETUP_IOPOLL);
+    let sqpoll = (self.flags & IORING_SETUP_SQPOLL) > 0;
+    let iopoll = (self.flags & IORING_SETUP_IOPOLL) > 0;
     let wakeup = self.sq.needs_wakeup();
     let flush = self.cq.needs_flush();
     let sq_enter = (submit && !sqpoll) || (submit && wakeup);
     let cq_enter = iopoll || flush;
 
-    if wait_nr > 0 || sq_enter || cq_enter {
+    if sq_enter || cq_enter {
       let register = false;
       let flags = if register { IORING_ENTER_REGISTERED_RING } else { 0 }
         | if sq_enter { IORING_SQ_NEED_WAKEUP } else { 0 }
         | if cq_enter { IORING_ENTER_GETEVENTS } else { 0 };
 
-      return io_uring::enter(self.enter_fd, to_submit, wait_nr, flags, ptr::null_mut::<sigset_t>());
+      return io_uring::enter(self.enter_fd, to_submit, 0, flags, ptr::null_mut::<sigset_t>());
     }
 
     return Ok(to_submit as i32);
@@ -81,26 +81,24 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     self.cq.advance(1);
   }
 
-  pub(crate) fn init_flags() -> u32 {
-    let sqe_setup = match size_of::<SQueue<T>>() {
+  pub(crate) fn init_flags() -> Result<u32, Error> {
+    let sqe_setup = match size_of::<sqe<T>>() {
       64  => 0,
       128 => IORING_SETUP_SQE128,
-      _   => 0,
+      _   => return Err(Error::from_raw_os_error(EINVAL)),
     };
-    let cqe_setup = match size_of::<CQueue<T>>() {
+    let cqe_setup = match size_of::<cqe<U>>() {
       16 => 0,
       32 => IORING_SETUP_CQE32,
-      _  => 0,
+      _  => return Err(Error::from_raw_os_error(EINVAL)),
     };
 
-    return IORING_SETUP_SQPOLL
-    | IORING_SETUP_SUBMIT_ALL
-    | sqe_setup 
-    | cqe_setup;
-  }
-
-  pub(crate) fn has_flag(&self, flag: u32) -> bool {
-    return (self.flags & flag) > 0;
+    return Ok(
+        IORING_SETUP_SQPOLL
+      | IORING_SETUP_SUBMIT_ALL
+      | sqe_setup 
+      | cqe_setup
+    );
   }
 }
 
