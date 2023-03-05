@@ -43,6 +43,18 @@ mod ring_tests {
     return Ok(());
   }
 
+  // #[test]
+  // fn depth_size_test() {
+  //   let ring = Ring::<[u64; 2], [u8; 0]>::new(32).unwrap();
+  //   assert_eq!(ring.ring.len(), 388);
+  
+  //   let ring = Ring::<[u64; 2], [u8; 0]>::new(128).unwrap();
+  //   assert_eq!(ring.ring.len(), 4928);
+
+  //   let ring = Ring::<[u64; 2], [u8; 0]>::new(4096).unwrap();
+  //   assert_eq!(ring.ring.len(), 147776);
+  // }
+
   #[test]
   fn nop_test() {
     let mut ring = match Ring::<[u64; 2], [u8; 0]>::new(32) {
