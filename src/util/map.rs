@@ -24,6 +24,10 @@ impl<T> Map<T> {
     });
   }
 
+  pub fn len(&self) -> usize {
+    return self.size;
+  }
+
   pub fn raw(&self) -> *mut T {
     return self.data;
   }
