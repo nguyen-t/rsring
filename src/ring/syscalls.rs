@@ -1,6 +1,6 @@
 use std::ptr;
 use std::ffi::{c_int, c_uint, c_char, c_void};
-use libc::{size_t, off_t, off64_t, mode_t, socklen_t, iovec, msghdr, sockaddr, statx};
+use libc::*;
 
 use crate::io_uring::{self, *};
 use crate::ring::Ring;
@@ -104,74 +104,74 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return self.sq.prep(IORING_OP_RECV, sockfd, buf, len as u32, 0, flags as u32);
   }
 
+  #[inline]
+	pub fn openat2(&mut self, dirfd: c_int, pathname: *const c_char, flags: c_int, mode: mode_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_OPENAT, dirfd, pathname as *const c_void, mode, 0, flags as u32);
+  }
+
+  #[inline]
+	pub fn epoll_ctl(&mut self, epfd: c_int, op: c_int, fd: c_int, event: *mut epoll_event) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_EPOLL_CTL, epfd, event as *mut c_void, op as u32, fd as u64, 0);
+  }
+
   // #[inline]
-	// pub fn openat2(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+	// pub fn splice(&mut self, fd_in: c_int, off_in: *mut off64_t, fd_out: c_int, off_out: *mut off64_t, len: size_t, flags: c_uint) -> Option<&mut io_uring::sqe<T>> {
+  //   return self.sq.prep(IORING_OP_SPLICE, fd_out, NULL, len, off_out as u64);
   // }
 
   // #[inline]
-	// pub fn epoll_ctl(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
-  // }
-
-  // #[inline]
-	// pub fn splice(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
-  // }
-
-  // #[inline]
-	// pub fn tee(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+	// pub fn tee(&mut self, fd_in: c_int, fd_out: c_int, len: size_t, flags: c_uint) -> Option<&mut io_uring::sqe<T>> {
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn shutdown(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn renameat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn unlinkat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn mkdirat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn symlinkat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-    // return self.call();
+    // return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn linkat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn fsetxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn setxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn fgetxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn getxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   #[inline]
@@ -189,66 +189,66 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
   // #[inline]
 	// pub fn read_fixed(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn write_fixed(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn poll_add(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn poll_remove(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn timeout(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn timeout_remove(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn async_cancel(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn link_timeout(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn files_update(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn provide_buffers(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn remove_buffers(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn msg_ring(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 
   // #[inline]
 	// pub fn uring_cmd(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.call();
+  //   return self.sq.prep();
   // }
 }
