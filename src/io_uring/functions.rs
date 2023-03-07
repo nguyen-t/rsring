@@ -61,13 +61,16 @@ impl<T: Sized> sqe<T> {
     return self;
   }
 
-  pub fn link(&mut self, hard: bool) -> &mut Self {
-    self.flags |= match hard {
-      false => IOSQE_IO_LINK as u8,
-      true  => IOSQE_IO_HARDLINK as u8,
-    };
+  pub fn link(&mut self) -> &mut Self {
+    self.flags |= IOSQE_IO_LINK as u8;
 
-    return self
+    return self;
+  }
+
+  pub fn hardlink(&mut self) -> &mut Self {
+    self.flags |= IOSQE_IO_HARDLINK as u8;
+
+    return self;
   }
 
   /* TODO: Prevent shooting yourself in the foot */

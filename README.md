@@ -27,7 +27,7 @@ fn main() {
         .set_data_u64(0);
       ring.write(fd, msg.as_ptr() as *const c_void, msg.len()).unwrap()
         .set_data_u64(1)
-        .link(false);
+        .link();
       ring.close(fd).unwrap()
         .set_data_u64(2);
     }
