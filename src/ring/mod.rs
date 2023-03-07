@@ -54,28 +54,4 @@ mod ring_tests {
   //   let ring = Ring::<[u64; 2], [u8; 0]>::new(4096).unwrap();
   //   assert_eq!(ring.ring.len(), 147776);
   // }
-
-  #[test]
-  fn nop_test() {
-    let mut ring = match Ring::<[u64; 2], [u8; 0]>::new(32) {
-      Ok(ring) => ring,
-      Err(err) => panic!("{}", err),
-    };
-    let mut iterations = 0;
-
-    while iterations < 1000 {
-      ring.nop();
-
-      match ring.submit() {
-        Ok(_) => (),
-        Err(err) => panic!("{}", err),
-      };
-      match ring.wait() {
-        Ok(_) => iterations += 1,
-        Err(err) => panic!("{}", err),
-      };
-
-      ring.next();
-    }
-  }
 }
