@@ -20,9 +20,9 @@ pub struct Ring<T: Sized, U: Sized> {
 }
 
 impl<T: Sized, U: Sized> Ring<T, U> {
-  pub fn new(depth: u32) -> Result<Ring<T, U>, Error> {
+  pub fn new(entries: u32) -> Result<Ring<T, U>, Error> {
     let mut p = io_uring::params::new(Ring::<T, U>::init_flags()?);
-    let fd = match io_uring::setup(depth, &mut p) {
+    let fd = match io_uring::setup(entries, &mut p) {
       Ok(fd) => fd,
       Err(e) => return Err(e)
     };
