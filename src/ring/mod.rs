@@ -13,14 +13,6 @@ mod ring_tests {
 
   #[test]
   fn init_test() -> Result<(), String> {
-    return match Ring::<[u64; 2], [u8; 0]>::new(32) {
-      Ok(_) => Ok(()),
-      Err(err) => Err(err.to_string())
-    };
-  }
-
-  #[test]
-  fn features_test() -> Result<(), String> {
     let ring = match Ring::<[u64; 2], [u8; 0]>::new(32) {
       Ok(ring) => ring,
       Err(err) => return Err(err.to_string())
