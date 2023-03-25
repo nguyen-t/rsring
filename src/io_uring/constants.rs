@@ -176,9 +176,9 @@ pub const IORING_CQE_BUFFER_SHIFT: u32   = 1 << 4;
 /*
  * mmap address offsets
  */
-pub const IORING_OFF_SQ_RING: i64 = 0x00000000;
-pub const IORING_OFF_CQ_RING: i64 = 0x08000000;
-pub const IORING_OFF_SQES: i64    = 0x10000000;
+pub const IORING_OFF_SQ_RING: u64 = 0x00000000;
+pub const IORING_OFF_CQ_RING: u64 = 0x08000000;
+pub const IORING_OFF_SQES: u64    = 0x10000000;
 
 /*
  * sqring_offsets->flags flags

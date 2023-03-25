@@ -29,8 +29,8 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let sq_size = p.sq_off.array as usize + p.sq_entries as usize * size_of::<u32>();
     let cq_size = p.cq_off.cqes as usize + p.cq_entries as usize * size_of::<io_uring::cqe<T>>();
     let size = core::cmp::max(sq_size, cq_size);
-    let ring = Map::new(fd, size, IORING_OFF_SQ_RING)?;
-    let sqes = Map::new(fd, size, io_uring::IORING_OFF_SQES)?;
+    let ring = Map::new(fd, size, IORING_OFF_SQ_RING as i64)?;
+    let sqes = Map::new(fd, size, IORING_OFF_SQES as i64)?;
     let sq = unsafe { SQueue::<T>::new(ring.raw(), &p, sqes) };
     let cq = unsafe { CQueue::<U>::new(ring.raw(), &p) };
 
