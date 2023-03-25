@@ -50,7 +50,7 @@ mod size_tests {
   #[test]
   fn probe_size() {
     assert_eq!(size_of::<probe_op>(), 8);
-    assert_eq!(size_of::<probe<[probe_op; 0]>>(), 16);
+    assert_eq!(size_of::<probe<1>>(), 24);
   }
 
   #[test]
@@ -61,7 +61,7 @@ mod size_tests {
   #[test]
   fn buf_size() {
     assert_eq!(size_of::<buf>(), 16);
-    assert_eq!(size_of::<buf_ring<[buf; 1]>>(), 16);
+    assert_eq!(size_of::<buf_ring<1>>(), 16);
     assert_eq!(size_of::<buf_reg>(), 40);
   }
 

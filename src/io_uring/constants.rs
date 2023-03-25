@@ -158,7 +158,8 @@ pub const IORING_MSG_SEND_FD: u32 = 1;
 /*
  * sqe->msg_ring_flags flags
  */
-pub const IORING_MSG_RING_CQE_SKIP: u32 = 1 << 0;
+pub const IORING_MSG_RING_CQE_SKIP: u32   = 1 << 0;
+pub const IORING_MSG_RING_FLAGS_PASS: u32 = 1 << 1;
 
 /*
  * cqe->flags flags
@@ -176,9 +177,12 @@ pub const IORING_CQE_BUFFER_SHIFT: u32   = 1 << 4;
 /*
  * mmap address offsets
  */
-pub const IORING_OFF_SQ_RING: u64 = 0x00000000;
-pub const IORING_OFF_CQ_RING: u64 = 0x08000000;
-pub const IORING_OFF_SQES: u64    = 0x10000000;
+pub const IORING_OFF_SQ_RING: u64    = 0x00000000;
+pub const IORING_OFF_CQ_RING: u64    = 0x08000000;
+pub const IORING_OFF_SQES: u64       = 0x10000000;
+pub const IORING_OFF_PBUF_RING: u64  = 0x80000000;
+pub const IORING_OFF_PBUF_SHIFT: u64 = 0x00000010;
+pub const IORING_OFF_PBUF_MASK: u64  = 0xF8000000;
 
 /*
  * sqring_offsets->flags flags
@@ -186,10 +190,6 @@ pub const IORING_OFF_SQES: u64    = 0x10000000;
 pub const IORING_SQ_NEED_WAKEUP: u32 = 1 << 0;
 pub const IORING_SQ_CQ_OVERFLOW: u32 = 1 << 1;
 pub const IORING_SQ_TASKRUN: u32     = 1 << 2;
-
-/*
- * cqring_offsets->flags flags
- */
 
 /*
  * Disable eventfd notifications
@@ -221,37 +221,39 @@ pub const IORING_FEAT_NATIVE_WORKERS: u32  = 1 << 9;
 pub const IORING_FEAT_RSRC_TAGS: u32       = 1 << 10;
 pub const IORING_FEAT_CQE_SKIP: u32        = 1 << 11;
 pub const IORING_FEAT_LINKED_FILE: u32     = 1 << 12;
+pub const IORING_FEAT_REG_REG_RING: u32    = 1 << 13;
 
 /*
  * io_uring_register() opcodes and arguments
  */
-pub const IORING_FEAT_REGISTER_BUFFERS: u32          = 0;
-pub const IORING_FEAT_UNREGISTER_BUFFERS: u32        = 1;
-pub const IORING_FEAT_REGISTER_FILES: u32            = 2;
-pub const IORING_FEAT_UNREGISTER_FILES: u32          = 3;
-pub const IORING_FEAT_REGISTER_EVENTFD: u32          = 4;
-pub const IORING_FEAT_UNREGISTER_EVENTFD: u32        = 5;
-pub const IORING_FEAT_REGISTER_FILES_UPDATE: u32     = 6;
-pub const IORING_FEAT_REGISTER_EVENTFD_ASYNC: u32    = 7;
-pub const IORING_FEAT_REGISTER_PROBE: u32            = 8;
-pub const IORING_FEAT_REGISTER_PERSONALITY: u32      = 9;
-pub const IORING_FEAT_UNREGISTER_PERSONALITY: u32    = 10;
-pub const IORING_FEAT_REGISTER_RESTRICTIONS: u32     = 11;
-pub const IORING_FEAT_REGISTER_ENABLE_RINGS: u32     = 12;
-pub const IORING_FEAT_REGISTER_FILES2: u32           = 13;
-pub const IORING_FEAT_REGISTER_FILES_UPDATE2: u32    = 14;
-pub const IORING_FEAT_REGISTER_BUFFERS2: u32         = 15;
-pub const IORING_FEAT_REGISTER_BUFFERS_UPDATE: u32   = 16;
-pub const IORING_FEAT_REGISTER_IOWQ_AFF: u32         = 17;
-pub const IORING_FEAT_UNREGISTER_IOWQ_AFF: u32       = 18;
-pub const IORING_FEAT_REGISTER_IOWQ_MAX_WORKERS: u32 = 19;
-pub const IORING_FEAT_REGISTER_RING_FDS: u32         = 20;
-pub const IORING_FEAT_UNREGISTER_RING_FDS: u32       = 21;
-pub const IORING_FEAT_REGISTER_PBUF_RING: u32        = 22;
-pub const IORING_FEAT_UNREGISTER_PBUF_RING: u32      = 23;
-pub const IORING_FEAT_REGISTER_SYNC_CANCEL: u32      = 24;
-pub const IORING_FEAT_REGISTER_FILE_ALLOC_RANGE: u32 = 25;
-pub const IORING_FEAT_REGISTER_LAST: u32             = 26;
+pub const IORING_REGISTER_BUFFERS: u32             = 0;
+pub const IORING_UNREGISTER_BUFFERS: u32           = 1;
+pub const IORING_REGISTER_FILES: u32               = 2;
+pub const IORING_UNREGISTER_FILES: u32             = 3;
+pub const IORING_REGISTER_EVENTFD: u32             = 4;
+pub const IORING_UNREGISTER_EVENTFD: u32           = 5;
+pub const IORING_REGISTER_FILES_UPDATE: u32        = 6;
+pub const IORING_REGISTER_EVENTFD_ASYNC: u32       = 7;
+pub const IORING_REGISTER_PROBE: u32               = 8;
+pub const IORING_REGISTER_PERSONALITY: u32         = 9;
+pub const IORING_UNREGISTER_PERSONALITY: u32       = 10;
+pub const IORING_REGISTER_RESTRICTIONS: u32        = 11;
+pub const IORING_REGISTER_ENABLE_RINGS: u32        = 12;
+pub const IORING_REGISTER_FILES2: u32              = 13;
+pub const IORING_REGISTER_FILES_UPDATE2: u32       = 14;
+pub const IORING_REGISTER_BUFFERS2: u32            = 15;
+pub const IORING_REGISTER_BUFFERS_UPDATE: u32      = 16;
+pub const IORING_REGISTER_IOWQ_AFF: u32            = 17;
+pub const IORING_UNREGISTER_IOWQ_AFF: u32          = 18;
+pub const IORING_REGISTER_IOWQ_MAX_WORKERS: u32    = 19;
+pub const IORING_REGISTER_RING_FDS: u32            = 20;
+pub const IORING_UNREGISTER_RING_FDS: u32          = 21;
+pub const IORING_REGISTER_PBUF_RING: u32           = 22;
+pub const IORING_UNREGISTER_PBUF_RING: u32         = 23;
+pub const IORING_REGISTER_SYNC_CANCEL: u32         = 24;
+pub const IORING_REGISTER_FILE_ALLOC_RANGE: u32    = 25;
+pub const IORING_REGISTER_LAST: u32                = 26;
+pub const IORING_REGISTER_USE_REGISTERED_RING: u32 = 1 << 31;
 
 /*
  * io-wq worker categories
@@ -273,6 +275,11 @@ pub const IORING_REGISTER_FILES_SKIP: i32 = -2;
  *
  */
 pub const IO_URING_OP_SUPPORTED: u32 = 1 << 0;
+
+/*
+ *
+ */
+pub const IOU_PBUF_RING_MMAP: u32 = 1;
 
 /*
  * io_uring_restriction->opcode values

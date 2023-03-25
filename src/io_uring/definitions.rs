@@ -1,5 +1,3 @@
-use libc::{timespec};
-
 /* TODO: Rewrite once anonymous unions and structs are in Rust-Nightly build */
 
 #[repr(C)]
@@ -135,13 +133,13 @@ pub struct probe_op {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
-pub struct probe<T: Sized> {
+#[derive(Debug, Clone, Copy)]
+pub struct probe<const T: usize> {
   pub last_op: u8,
   pub ops_len: u8,
   pub resv1:   u16,
   pub resv2:   [u32; 3],
-  pub ops:     T,
+  pub ops:     [probe_op; T],
 }
 
 #[repr(C)]
@@ -163,9 +161,9 @@ pub struct buf {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
-pub struct buf_ring<T: Sized> {
-  pub bufs: T,
+#[derive(Debug, Clone, Copy)]
+pub struct buf_ring<const T: usize> {
+  pub bufs: [buf; T],
 }
 
 #[repr(C)]
@@ -193,7 +191,7 @@ pub struct sync_cancel_reg {
   pub addr: u64,
   pub fd: i32,
   pub flags: u32,
-  pub timeout: timespec,
+  pub timeout: __kernel_timespec,
   pub pad: [u64; 4],
 }
 
