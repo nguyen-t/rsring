@@ -1,5 +1,5 @@
 # RSRing
-A Rust io_uring library. <br>
+A low level Rust io_uring library. <br>
 Inspired by liburing (https://github.com/axboe/liburing) <br>
 
 ## TODO
