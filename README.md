@@ -2,6 +2,13 @@
 A Rust io_uring library. <br>
 Inspired by liburing (https://github.com/axboe/liburing) <br>
 
+## TODO
+ - Resolve max ring size issue
+ - Add more comprehensive tests
+ - Add more syscalls
+ - Add registered buffers
+ - Async support?
+
 ## Example TCP Server
 ```rust
 use std::{net::TcpListener, os::fd::AsRawFd, mem::MaybeUninit, ffi::c_void};
@@ -15,7 +22,7 @@ fn main() {
   let mut addr = MaybeUninit::<sockaddr_in>::uninit();
   let mut addr_len = MaybeUninit::<socklen_t>::uninit();
   
-  ring.accept4(tcp.as_raw_fd(), addr.as_mut_ptr() as *mut sockaddr, addr_len.as_mut_ptr(), 0).unwrap()
+  ring.accept(tcp.as_raw_fd(), addr.as_mut_ptr() as *mut sockaddr, addr_len.as_mut_ptr()).unwrap()
     .set_data_u64(0);
 
   loop {
@@ -23,7 +30,7 @@ fn main() {
     let fd = cqe.res;
 
     if cqe.get_data_u64() == 0 {
-      ring.accept4(tcp.as_raw_fd(), addr.as_mut_ptr() as *mut sockaddr, addr_len.as_mut_ptr(), 0).unwrap()
+      ring.accept(tcp.as_raw_fd(), addr.as_mut_ptr() as *mut sockaddr, addr_len.as_mut_ptr()).unwrap()
         .set_data_u64(0);
       ring.write(fd, msg.as_ptr() as *const c_void, msg.len()).unwrap()
         .set_data_u64(1)

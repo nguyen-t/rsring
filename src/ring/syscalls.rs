@@ -15,18 +15,38 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   #[inline]
+  pub fn preadv(&mut self, fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.preadv2(fd, iov, iovcnt, offset, 0);
+  }
+
+  #[inline]
+  pub fn readv(&mut self, fd: c_int, iov: *const iovec, iovcnt: c_int) -> Option<&mut io_uring::sqe<T>> {
+    return self.preadv(fd, iov, iovcnt, 0);
+  }
+
+  #[inline]
 	pub fn pwritev2(&mut self, fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off_t, flags: c_int) -> Option<&mut io_uring::sqe<T>> {
     return self.sq.prep(IORING_OP_WRITEV, fd, iov as *const c_void, iovcnt as u32, offset as u64, flags as u32);
   }
 
   #[inline]
+  pub fn pwritev(&mut self, fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.pwritev2(fd, iov, iovcnt, offset, 0);
+  }
+
+  #[inline]
+  pub fn writev(&mut self, fd: c_int, iov: *const iovec, iovcnt: c_int) -> Option<&mut io_uring::sqe<T>> {
+    return self.pwritev(fd, iov, iovcnt, 0);
+  }
+
+  #[inline]
 	pub fn fsync(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-    return self.sq.prep(IORING_OP_WRITEV, fd, NULL, 0, 0, 0);
+    return self.sq.prep(IORING_OP_FSYNC, fd, NULL, 0, 0, 0);
   }
 
   #[inline]
 	pub fn fdatasync(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-    return self.sq.prep(IORING_FSYNC_DATASYNC, fd, NULL, 0, 0, 0);
+    return self.sq.prep(IORING_OP_FSYNC, fd, NULL, 0, 0, IORING_FSYNC_DATASYNC);
   }
 
   #[inline]
@@ -50,6 +70,11 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   }
 
   #[inline]
+  pub fn accept(&mut self, sockfd: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.accept4(sockfd, addr, addrlen, 0);
+  }
+
+  #[inline]
 	pub fn connect(&mut self, sockfd: c_int, addr: *const sockaddr, addrlen: socklen_t) -> Option<&mut io_uring::sqe<T>> {
     return self.sq.prep(IORING_OP_CONNECT, sockfd, addr as *const c_void, 0, addrlen as u64, 0);
   }
@@ -62,6 +87,16 @@ impl<T: Sized, U: Sized> Ring<T, U> {
   #[inline]
 	pub fn openat(&mut self, dirfd: c_int, pathname: *const c_char, flags: c_int, mode: mode_t) -> Option<&mut io_uring::sqe<T>> {
     return self.sq.prep(IORING_OP_OPENAT, dirfd, pathname as *const c_void, mode as u32, 0, flags as u32);
+  }
+
+  #[inline]
+	pub fn open(&mut self, pathname: *const c_char, flags: c_int, mode: mode_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.openat(AT_FDCWD, pathname, flags, mode);
+  }
+
+  #[inline]
+	pub fn creat(&mut self, pathname: *const c_char, mode: mode_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
   }
 
   #[inline]
@@ -114,60 +149,94 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     return self.sq.prep(IORING_OP_EPOLL_CTL, epfd, event as *mut c_void, op as u32, fd as u64, 0);
   }
 
-  // #[inline]
-	// pub fn splice(&mut self, fd_in: c_int, off_in: *mut off64_t, fd_out: c_int, off_out: *mut off64_t, len: size_t, flags: c_uint) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep(IORING_OP_SPLICE, fd_out, NULL, len, off_out as u64);
-  // }
+  #[inline]
+	pub fn splice(&mut self, fd_in: c_int, off_in: *mut off64_t, fd_out: c_int, off_out: *mut off64_t, len: size_t, flags: c_uint) -> Option<&mut io_uring::sqe<T>> {
+    let sqe = self.sq.prep(IORING_OP_SPLICE, fd_out, NULL, len as u32, off_out as u64, flags)?;
 
-  // #[inline]
-	// pub fn tee(&mut self, fd_in: c_int, fd_out: c_int, len: size_t, flags: c_uint) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+    sqe.file_select = fd_in as u32;
+    sqe.addr1 = off_in as u64;
 
-  // #[inline]
-	// pub fn shutdown(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+    return Some(sqe);
+  }
 
-  // #[inline]
-	// pub fn renameat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+  #[inline]
+	pub fn tee(&mut self, fd_in: c_int, fd_out: c_int, len: size_t, flags: c_uint) -> Option<&mut io_uring::sqe<T>> {
+    let sqe = self.sq.prep(IORING_OP_TEE, fd_out, NULL, len as u32, 0, flags)?;
 
-  // #[inline]
-	// pub fn unlinkat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+    sqe.file_select = fd_in as u32;
 
-  // #[inline]
-	// pub fn mkdirat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+    return Some(sqe);
+  }
 
-  // #[inline]
-	// pub fn symlinkat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-    // return self.sq.prep();
-  // }
+  #[inline]
+	pub fn shutdown(&mut self, socket: c_int, how: c_int) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_SHUTDOWN, socket, NULL, how as u32, 0, 0);
+  }
 
-  // #[inline]
-	// pub fn linkat(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+  #[inline]
+	pub fn renameat(&mut self, olddirfd: c_int, oldpath: *const c_char, newdirfd: c_int, newpath: *const c_char) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_RENAMEAT, olddirfd, oldpath as *const c_void, newdirfd as u32, newpath as u64, 0);
+  }
 
-  // #[inline]
-	// pub fn fsetxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+  #[inline]
+  pub fn rename(&mut self, old: *const c_char, new: *const c_char) -> Option<&mut io_uring::sqe<T>> {
+    return self.renameat(AT_FDCWD, old, AT_FDCWD, new);
+  }
+
+  #[inline]
+	pub fn unlinkat(&mut self, dirfd: c_int, pathname: *const c_char, flags: c_int) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_UNLINKAT, dirfd, pathname as *const c_void, 0, 0, flags as u32);
+  }
+
+  #[inline]
+  pub fn unlink(&mut self, pathname: *const c_char) -> Option<&mut io_uring::sqe<T>> {
+    return self.unlinkat(AT_FDCWD, pathname, 0);
+  }
+
+  #[inline]
+	pub fn mkdirat(&mut self, dirfd: c_int, pathname: *const c_char, mode: mode_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_MKDIRAT, dirfd, pathname as *const c_void, mode as u32, 0, 0);
+  }
+
+  #[inline]
+  pub fn mkdir(&mut self, path: *const c_char, mode: mode_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.mkdirat(AT_FDCWD, path, mode);
+  }
+
+  #[inline]
+	pub fn symlinkat(&mut self, oldpath: *const c_char, newdirfd: c_int, newpath: *const c_char) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_SYMLINKAT, newdirfd, oldpath as *const c_void, 0, newpath as u64, 0);
+  }
+
+  #[inline]
+  pub fn symlink(&mut self, path1: *const c_char, path2: *const c_char) -> Option<&mut io_uring::sqe<T>> {
+    return self.symlinkat(path1, AT_FDCWD, path2);
+  }
+
+  #[inline]
+	pub fn linkat(&mut self, olddirfd: c_int, oldpath: *const c_char, newdirfd: c_int, newpath: *const c_char, flags: c_int) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_LINKAT, olddirfd, oldpath as *const c_void, newdirfd as u32, newpath as u64, flags as u32);
+  }
+
+  #[inline]
+  pub fn link(&mut self, path1: *const c_char, path2: *const c_char) -> Option<&mut io_uring::sqe<T>> {
+    return self.linkat(AT_FDCWD, path1, AT_FDCWD, path2, 0);
+  }
+
+  #[inline]
+	pub fn fsetxattr(&mut self, fd: c_int, name: *const c_char, value: *const c_void, size: size_t, flags: c_int) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_FSETXATTR, fd, name as *const c_void, size as u32, value as u64, flags as u32);
+  }
 
   // #[inline]
 	// pub fn setxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
   //   return self.sq.prep();
   // }
 
-  // #[inline]
-	// pub fn fgetxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
-  //   return self.sq.prep();
-  // }
+  #[inline]
+	pub fn fgetxattr(&mut self, fd: c_int, name: *const c_char, value: *mut c_void, size: size_t) -> Option<&mut io_uring::sqe<T>> {
+    return self.sq.prep(IORING_OP_FGETXATTR, fd, name as *const c_void, size as u32, value as u64, 0);
+  }
 
   // #[inline]
 	// pub fn getxattr(&mut self, fd: c_int) -> Option<&mut io_uring::sqe<T>> {
