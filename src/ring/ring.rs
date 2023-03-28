@@ -36,7 +36,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     for i in 0..sq.ring_entries {
       unsafe {
-        *sq.array.add(i as usize) = i as u32;
+        *sq.array.add(i as usize) = i;
       };
     }
 

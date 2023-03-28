@@ -73,7 +73,7 @@ impl<T: Sized> SQueue<T> {
     return Some(self.sqes.add(index as usize));
   }
 
-  pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: u32) -> Option<&mut io_uring::sqe<T>> {
+  pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: i32) -> Option<&mut io_uring::sqe<T>> {
     let sqe = self.next()?;
 
     unsafe {

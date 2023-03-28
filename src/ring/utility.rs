@@ -36,10 +36,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let to_submit = self.sq.remaining();
 
     self.sq.update();
-
-    if let Err(err) = self.ready(to_submit, 1, ptr::null::<sigset_t>(), 0) {
-      return Err(err);
-    };
+    self.ready(to_submit, 1, ptr::null::<sigset_t>(), 0)?;
 
     return match self.cq.next() {
       Some(cqe) => Ok(unsafe { cqe.as_mut().unwrap() }),
@@ -52,7 +49,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
     let iopoll = (self.flags & IORING_SETUP_IOPOLL) > 0;
     let wakeup = self.sq.needs_wakeup();
     let flush = self.cq.needs_flush();
-    let sq_enter = ((to_submit > 0) && !sqpoll) || ((to_submit > 0) && wakeup);
+    let sq_enter = (wakeup || !sqpoll) && (to_submit > 0);
     let cq_enter = iopoll || flush;
 
     if to_submit == 0 && min_complete == 0 && !sq_enter && !cq_enter {

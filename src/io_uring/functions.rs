@@ -40,8 +40,8 @@ pub fn register(fd: c_int, opcode: c_uint, arg: *mut c_void, nr_args: c_uint) ->
 impl __kernel_timespec {
   pub fn from_ms(ms: i64) -> __kernel_timespec {
     return __kernel_timespec {
-      tv_sec:  (ms / 1000) as i64,
-      tv_nsec: ((ms % 1000) * 1000000) as i64,
+      tv_sec:  (ms / 1000),
+      tv_nsec: ((ms % 1000) * 1000000),
     };
   }
 }

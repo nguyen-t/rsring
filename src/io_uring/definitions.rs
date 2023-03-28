@@ -17,7 +17,7 @@ pub struct sqe<T: Sized> {
   pub addr2:       u64,
   pub addr1:       u64,
   pub len:         u32,
-  pub op_flags:    u32,
+  pub op_flags:    i32,
   pub user_data:   u64,
   pub buf_select:  u16,
   pub personality: u16,
