@@ -18,30 +18,30 @@ impl<T> Map<T> {
       return Err(Error::last_os_error());
     }
 
-    return Ok(Map {
+    Ok(Map {
       data: map as *mut T,
       size: len,
-    });
+    })
   }
 
   pub fn len(&self) -> usize {
-    return self.size;
+    self.size
   }
 
   pub fn raw(&self) -> *mut T {
-    return self.data;
+    self.data
   }
 
   pub fn add(&self, count: usize) -> *mut T {
-    return unsafe { self.data.add(count) };
+    unsafe { self.data.add(count) }
   }
 
   pub fn sub(&self, count: usize) -> *mut T {
-    return unsafe { self.data.sub(count) };
+    unsafe { self.data.sub(count) }
   }
 
   pub fn offset(&self, count: isize) -> *mut T {
-    return unsafe { self.data.offset(count) };
+    unsafe { self.data.offset(count) }
   }
 }
 

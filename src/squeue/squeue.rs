@@ -21,7 +21,7 @@ pub struct SQueue<T: Sized> {
 
 impl<T: Sized> SQueue<T> {
   pub unsafe fn new(ring: *mut c_void, p: &io_uring::params, sqes: Map<sqe<T>>) -> SQueue<T> {
-    return SQueue {
+    SQueue {
       khead: ring.add(p.sq_off.head as usize)            as *mut AtomicU32,
       ktail: ring.add(p.sq_off.tail as usize)            as *mut AtomicU32,
       kflags: ring.add(p.sq_off.tail as usize)           as *mut AtomicU32,
@@ -32,7 +32,7 @@ impl<T: Sized> SQueue<T> {
       sqe_tail : 0,
       ring_mask: ring.add(p.sq_off.ring_mask as usize).cast::<u32>().read(),
       ring_entries: ring.add(p.sq_off.ring_entries as usize).cast::<u32>().read(),
-    };
+    }
   }
 
   #[inline]
@@ -40,14 +40,14 @@ impl<T: Sized> SQueue<T> {
     let tail = self.sqe_tail;
     let head = unsafe { (*self.khead).load(Ordering::Acquire) };
 
-    return tail - head;
+    tail - head
   }
 
   #[inline]
   pub(crate) fn needs_wakeup(&self) -> bool {
     unsafe { 
-      return ((*self.kflags).load(Ordering::Acquire) & IORING_SQ_NEED_WAKEUP) > 0;
-    };
+      ((*self.kflags).load(Ordering::Acquire) & IORING_SQ_NEED_WAKEUP) > 0
+    }
   }
 
   pub(crate) fn update(&mut self) {
@@ -70,7 +70,7 @@ impl<T: Sized> SQueue<T> {
 
     self.sqe_tail = next;
 
-    return Some(self.sqes.add(index as usize));
+    Some(self.sqes.add(index as usize))
   }
 
   pub(crate) fn prep(&mut self, op: u32, fd: i32, addr: *const c_void, len: u32, offset: u64, flags: i32) -> Option<&mut io_uring::sqe<T>> {

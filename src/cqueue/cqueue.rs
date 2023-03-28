@@ -16,7 +16,7 @@ pub struct CQueue<T: Sized> {
 
 impl<T: Sized> CQueue<T> {
   pub unsafe fn new(ring: *mut c_void, p: &io_uring::params) -> CQueue<T> {
-    return CQueue {
+    CQueue {
       khead: ring.add(p.cq_off.head as usize)         as *mut AtomicU32,
       ktail: ring.add(p.cq_off.tail as usize)         as *mut AtomicU32,
       kflags: ring.add(p.cq_off.flags as usize)       as *mut AtomicU32,
@@ -24,7 +24,7 @@ impl<T: Sized> CQueue<T> {
       cqes: ring.add(p.cq_off.cqes as usize)          as *mut io_uring::cqe<T>,
       ring_mask: ring.add(p.cq_off.ring_mask as usize).cast::<u32>().read(),
       ring_entries: ring.add(p.cq_off.ring_entries as usize).cast::<u32>().read(),
-    };
+    }
   }
 
   #[inline]
@@ -32,7 +32,7 @@ impl<T: Sized> CQueue<T> {
     let tail = unsafe { (*self.ktail).load(Ordering::Acquire) };
     let head = unsafe { (*self.khead).load(Ordering::Acquire) };
 
-    return tail - head;
+    tail - head
   }
 
   #[inline]
@@ -40,8 +40,8 @@ impl<T: Sized> CQueue<T> {
     let flags = IORING_SQ_CQ_OVERFLOW | IORING_SQ_TASKRUN;
 
     unsafe {
-      return ((*self.kflags).load(Ordering::Acquire) & flags) > 0;
-    };
+      ((*self.kflags).load(Ordering::Acquire) & flags) > 0
+    }
   }
 
   #[inline]
@@ -61,6 +61,6 @@ impl<T: Sized> CQueue<T> {
       return None;
     }
 
-    return Some(unsafe { self.cqes.add(index as usize) });
+    Some(unsafe { self.cqes.add(index as usize) })
   }
 }

@@ -32,7 +32,7 @@ mod ring_tests {
     println!("IORING_FEAT_CQE_SKIP        {}", ring.features & IORING_FEAT_CQE_SKIP        > 0);
     println!("IORING_FEAT_LINKED_FILE     {}", ring.features & IORING_FEAT_LINKED_FILE     > 0);
 
-    return Ok(());
+    Ok(())
   }
 
   // #[test]

@@ -40,7 +40,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       };
     }
 
-    return Ok(Ring {
+    Ok(Ring {
       ring: ring,
       ring_fd: fd,
       enter_fd: fd,
@@ -48,7 +48,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       features: p.features,
       sq: sq,
       cq: cq,
-    });
+    })
   }
 
   pub(crate) fn init_flags() -> Result<u32, Error> {
@@ -63,12 +63,12 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       _  => return Err(Error::from_raw_os_error(EINVAL)),
     };
 
-    return Ok(
+    Ok(
         IORING_SETUP_SQPOLL
       | IORING_SETUP_SUBMIT_ALL
       | sqe_setup 
       | cqe_setup
-    );
+    )
   }
 }
 

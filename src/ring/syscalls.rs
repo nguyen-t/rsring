@@ -155,7 +155,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     sqe.file_select = fd_in as u32;
 
-    return Some(sqe);
+    Some(sqe)
   }
 
   #[inline]
@@ -164,7 +164,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     sqe.file_select = fd_in as u32;
 
-    return Some(sqe);
+    Some(sqe)
   }
 
   #[inline]

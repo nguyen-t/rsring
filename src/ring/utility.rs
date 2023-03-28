@@ -29,7 +29,7 @@ impl<T: Sized, U: Sized> Ring<T, U> {
 
     self.sq.update();
 
-    return self.ready(to_submit, 0, ptr::null_mut::<sigset_t>(), 0);
+    self.ready(to_submit, 0, ptr::null_mut::<sigset_t>(), 0)
   }
 
   pub fn submit_wait(&mut self) -> Result<&mut io_uring::cqe<U>, Error> {
@@ -79,6 +79,6 @@ impl<T: Sized, U: Sized> Ring<T, U> {
       return io_uring::enter(self.enter_fd, to_submit, min_complete, flags, sig);
     }
 
-    return Ok(to_submit as i32);
+    Ok(to_submit as i32)
   }
 }
